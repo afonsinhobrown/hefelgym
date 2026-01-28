@@ -1,0 +1,6 @@
+{
+  "appId": "com.hefelgym.app",
+  "appName": "Hefel Gym",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

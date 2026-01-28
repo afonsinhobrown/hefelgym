@@ -1,0 +1,10 @@
+{
+    "hikvision": {
+        "ip": "192.168.1.64",
+        "user": "admin",
+        "password": "@dmin2520"
+    },
+    "whatsapp": {
+        "session": "hefelgym-pos-final"
+    }
+}

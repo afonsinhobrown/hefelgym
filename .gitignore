@@ -1,0 +1,29 @@
+# OS files
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Tech
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+
+# SQLite
+*.db
+*.db-journal
+
+# Android
+android/app/build
+android/build
+*.apk
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea

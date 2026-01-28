@@ -1,0 +1,108 @@
+{
+	"AcsEvent":	{
+		"searchID":	"INSPECT_STRUCTURE_2",
+		"totalMatches":	14184,
+		"responseStatusStrg":	"MORE",
+		"numOfMatches":	5,
+		"InfoList":	[{
+				"major":	5,
+				"minor":	75,
+				"time":	"2025-10-03T08:12:23+02:00",
+				"cardNo":	"2163136957",
+				"cardType":	1,
+				"name":	"Adalmira Mabutana",
+				"cardReaderNo":	1,
+				"doorNo":	1,
+				"employeeNoString":	"00000111",
+				"serialNo":	110003,
+				"userType":	"normal",
+				"currentVerifyMode":	"cardOrfaceOrPw",
+				"mask":	"no",
+				"FaceRect":	{
+					"height":	0.086,
+					"width":	0.153,
+					"x":	0.054,
+					"y":	0.466
+				}
+			}, {
+				"major":	5,
+				"minor":	75,
+				"time":	"2025-10-03T08:19:19+02:00",
+				"cardNo":	"0407948052",
+				"cardType":	1,
+				"name":	"Amonike Abdul Remane",
+				"cardReaderNo":	1,
+				"doorNo":	1,
+				"employeeNoString":	"21634665",
+				"serialNo":	110006,
+				"userType":	"normal",
+				"currentVerifyMode":	"cardOrfaceOrPw",
+				"mask":	"no",
+				"FaceRect":	{
+					"height":	0.097,
+					"width":	0.173,
+					"x":	0.004,
+					"y":	0.449
+				}
+			}, {
+				"major":	5,
+				"minor":	75,
+				"time":	"2025-10-03T08:19:23+02:00",
+				"cardNo":	"0166321814",
+				"cardType":	1,
+				"name":	"Casimiro Antonio",
+				"cardReaderNo":	1,
+				"doorNo":	1,
+				"employeeNoString":	"00000018",
+				"serialNo":	110008,
+				"userType":	"normal",
+				"currentVerifyMode":	"cardOrfaceOrPw",
+				"mask":	"no",
+				"FaceRect":	{
+					"height":	0.141,
+					"width":	0.252,
+					"x":	0.297,
+					"y":	0.317
+				}
+			}, {
+				"major":	5,
+				"minor":	75,
+				"time":	"2025-10-03T08:19:30+02:00",
+				"cardNo":	"0166321814",
+				"cardType":	1,
+				"name":	"Casimiro Antonio",
+				"cardReaderNo":	1,
+				"doorNo":	1,
+				"employeeNoString":	"00000018",
+				"serialNo":	110012,
+				"userType":	"normal",
+				"currentVerifyMode":	"cardOrfaceOrPw",
+				"mask":	"no",
+				"FaceRect":	{
+					"height":	0.151,
+					"width":	0.268,
+					"x":	0.258,
+					"y":	0.312
+				}
+			}, {
+				"major":	5,
+				"minor":	75,
+				"time":	"2025-10-03T08:19:30+02:00",
+				"cardType":	1,
+				"name":	"Casimiro Antonio",
+				"cardReaderNo":	1,
+				"doorNo":	1,
+				"employeeNoString":	"00000031",
+				"serialNo":	110010,
+				"userType":	"normal",
+				"currentVerifyMode":	"cardOrfaceOrPw",
+				"mask":	"no",
+				"FaceRect":	{
+					"height":	0.151,
+					"width":	0.268,
+					"x":	0.155,
+					"y":	0.321
+				}
+			}]
+	}
+}
