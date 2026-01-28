@@ -146,7 +146,7 @@ const Sidebar = ({ onNavItemClick }) => {
 
       <style>{`
         .sidebar {
-            width: 280px; /* Mais largo para premium feel */
+            width: 280px; 
             height: 100vh;
             background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             border-right: 1px solid rgba(255,255,255,0.08);
@@ -157,6 +157,13 @@ const Sidebar = ({ onNavItemClick }) => {
             top: 0;
             z-index: 50;
             box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px; /* Reduzir um pouco no mobile */
+            }
         }
 
         .logo-container {
