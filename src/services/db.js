@@ -12,9 +12,9 @@ const getBaseAPI = () => {
     const saved = localStorage.getItem('custom_server_url');
     if (saved) return saved;
 
-    // In production (Vercel), we might want a specific cloud backend
+    // In production (Vercel/APK), we use the Render cloud backend
     if (import.meta.env.PROD) {
-        return import.meta.env.VITE_PROD_API_URL || 'http://10.214.174.159:3001/api';
+        return import.meta.env.VITE_PROD_API_URL || 'https://hefelgym.onrender.com/api';
     }
 
     return import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3001/api';
