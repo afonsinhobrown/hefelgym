@@ -176,20 +176,43 @@ const Login = () => {
                     }
                 } catch (localErr) {
                     console.error("Local Auth Catch:", localErr);
-                    // ULTIMO RECURSO
-                    if ((email.trim() === 'admin@hefelgym.com' && password.trim() === 'admin') ||
-                        (email.trim() === 'super@gymar.com' && password.trim() === 'super')) {
 
-                        token = 'lokal_jwt_' + simpleHash(email + Date.now());
-                        session = {
-                            user: email.includes('super') ? 'Super Admin' : 'Admin Hefel',
-                            role: email.includes('super') ? 'super_admin' : 'gym_admin',
-                            gymId: 'hefel_gym_v1',
-                            token: token,
-                            encryptedData: 'simulated_aes_256'
-                        };
-                    } else {
-                        throw new Error('Credenciais inválidas (Local e Cloud).');
+                    try {
+                        const { data: userData, error: tableError } = await supabase
+                            .from('system_users')
+                            .select('*')
+                            .eq('email', email)
+                            .eq('password', password)
+                            .maybeSingle();
+
+                        if (!tableError && userData) {
+                            token = 'supa_direct_' + simpleHash(email + Date.now());
+                            session = {
+                                user: userData.name || userData.email,
+                                role: userData.role || 'gym_admin',
+                                gymId: userData.gym_id || 'hefel_gym_v1',
+                                userId: userData.id,
+                                token: token,
+                                encryptedData: 'supabase_direct'
+                            };
+                        }
+                    } catch (supaErr) { }
+
+                    if (!session) {
+                        if ((email.trim() === 'admin@hefelgym.com' && password.trim() === 'admin') ||
+                            (email.trim() === 'super@gymar.com' && password.trim() === 'super')) {
+
+                            token = 'tok_jwt_' + simpleHash(email + Date.now());
+                            session = {
+                                user: email.includes('super') ? 'Super Admin' : 'Admin Hefel',
+                                role: email.includes('super') ? 'super_admin' : 'gym_admin',
+                                gymId: 'hefel_gym_v1',
+                                token: token,
+                                encryptedData: 'simulated_aes_256'
+                            };
+                        } else {
+                            throw new Error('Credenciais inválidas ou Servidor Offline.');
+                        }
                     }
                 }
             }
