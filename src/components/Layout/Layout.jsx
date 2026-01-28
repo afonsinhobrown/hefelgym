@@ -196,11 +196,21 @@ const Layout = () => {
           margin: 0 auto;
         }
 
+        .sidebar-wrapper {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            z-index: 50;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .sidebar-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(4px);
             z-index: 45;
         }
@@ -211,16 +221,11 @@ const Layout = () => {
                 margin-left: 0;
             }
             .sidebar-wrapper {
-                position: fixed;
-                left: -280px;
-                top: 0;
-                bottom: 0;
-                width: 280px;
-                z-index: 50;
-                transition: transform 0.3s ease;
+                transform: translateX(-280px);
+                left: 0;
             }
             .sidebar-wrapper.open {
-                transform: translateX(280px);
+                transform: translateX(0);
             }
             .mobile-toggle {
                 display: flex;
