@@ -6,6 +6,7 @@ import { RefreshCw } from 'lucide-react';
 
 const Layout = () => {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Monitorizar Sincronização (Bloqueio de Ecrã)
   useEffect(() => {
@@ -37,13 +38,21 @@ const Layout = () => {
 
   return (
     <>
-      <div className="app-layout">
-        <Sidebar />
+      <div className={`app-layout ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+        <div className={`sidebar-wrapper ${isMobileMenuOpen ? 'open' : ''}`}>
+          <Sidebar onNavItemClick={() => setIsMobileMenuOpen(false)} />
+        </div>
         <main className="main-content">
           <header className="top-header glass">
-            <div className="greeting">
-              <h1>Olá, {session.user}</h1>
-              <p>{session.role === 'super_admin' ? 'Painel de Gestão Global' : 'Painel de Controlo'}</p>
+            <div className="header-left">
+              <button className="mobile-toggle" onClick={() => setIsMobileMenuOpen(true)}>
+                <div className="hamburger"></div>
+              </button>
+              <div className="greeting">
+                <h1>Olá, {session.user}</h1>
+                <p>{session.role === 'super_admin' ? 'Painel de Gestão Global' : 'Painel de Controlo'}</p>
+              </div>
             </div>
             <div className="user-profile">
               <div className="avatar">A</div>
@@ -107,9 +116,10 @@ const Layout = () => {
 
         .main-content {
           flex: 1;
-          margin-left: 260px;
+          margin-left: 280px; /* Alinhado com a largura da sidebar */
           background-color: var(--bg-dark);
           min-height: 100vh;
+          transition: margin 0.3s ease;
         }
 
         .top-header {
@@ -123,6 +133,37 @@ const Layout = () => {
           z-index: 40;
           border-bottom: 1px solid var(--border);
         }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .hamburger, .hamburger::before, .hamburger::after {
+            content: '';
+            display: block;
+            background: var(--text-main);
+            height: 2px;
+            width: 20px;
+            position: absolute;
+            left: 10px;
+            transition: all 0.2s ease;
+        }
+        .hamburger { top: 18px; }
+        .hamburger::before { top: -6px; left: 0; }
+        .hamburger::after { top: 6px; left: 0; }
 
         .greeting h1 {
           font-size: 1.25rem;
@@ -148,9 +189,58 @@ const Layout = () => {
         }
 
         .page-content {
-          padding: 2rem 2rem 10rem 2rem; /* Extra padding bottom para scroll longo */
+          padding: 2rem 2rem 10rem 2rem;
           max-width: 1600px;
           margin: 0 auto;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 45;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar-wrapper {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                width: 280px;
+                z-index: 50;
+                transition: transform 0.3s ease;
+            }
+            .sidebar-wrapper.open {
+                transform: translateX(280px);
+            }
+            .mobile-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .sidebar-overlay {
+                display: block;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+            }
+            .app-layout.mobile-open .sidebar-overlay {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .top-header {
+                padding: 0 1rem;
+            }
+            .page-content {
+                padding: 1.5rem 1rem 8rem 1rem;
+            }
         }
       `}</style>
     </>

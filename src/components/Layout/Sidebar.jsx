@@ -22,7 +22,7 @@ import {
 import '../../styles/design_system.css';
 import { supabase } from '../../services/supabase';
 
-const Sidebar = () => {
+const Sidebar = ({ onNavItemClick }) => {
   const navigate = useNavigate();
   const [gymName, setGymName] = useState('Hefel Gym Teste'); // Default correto
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -120,6 +120,7 @@ const Sidebar = () => {
           <NavLink
             key={item.label}
             to={item.path}
+            onClick={onNavItemClick}
             className={({ isActive }) =>
               `nav-item ${isActive ? 'active' : ''}`
             }
