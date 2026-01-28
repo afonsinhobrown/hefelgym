@@ -22,7 +22,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { db } from '../services/db';
+import { db, API_LOCAL } from '../services/db';
 
 const StatCard = ({ title, value, subtext, icon: Icon, trend, onClick }) => (
   <div className={`card stat-card ${onClick ? 'clickable' : ''}`} onClick={onClick}>
@@ -204,7 +204,7 @@ const Dashboard = () => {
 
       if (sendWhatsApp) {
         const pdfBase64 = pdf.output('datauristring').split(',')[1];
-        const res = await fetch('http://localhost:3001/api/whatsapp/send', {
+        const res = await fetch(`${API_LOCAL}/whatsapp/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -53,7 +53,7 @@ const Login = () => {
     // Fetch Gyms on Modal Open
     const fetchGyms = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/admin/gyms');
+            const res = await fetch(`${API_LOCAL}/admin/gyms`);
             const data = await res.json();
             setGymsList(data);
         } catch (e) {
@@ -68,7 +68,7 @@ const Login = () => {
         try {
             if (activeTab === 'new_gym') {
                 // Registrar NOVO Ginásio
-                const res = await fetch('http://localhost:3001/api/admin/register-gym', {
+                const res = await fetch(`${API_LOCAL}/admin/register-gym`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(regData)
@@ -85,7 +85,7 @@ const Login = () => {
                 // Registrar User em Ginásio EXISTENTE
                 if (!regData.selectedGymId) throw new Error("Selecione um ginásio");
 
-                const res = await fetch('http://localhost:3001/api/system-users', {
+                const res = await fetch(`${API_LOCAL}/system-users`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
