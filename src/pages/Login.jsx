@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, Lock, Mail, ArrowRight, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { API_LOCAL } from '../services/db';
 
 // Função auxiliar para criar hash simples (apenas demonstração visual de encriptação)
 const simpleHash = (str) => {
@@ -139,7 +140,7 @@ const Login = () => {
             else {
                 // FALLBACK LOCAL: Tentar autenticar via API Local (SQLite)
                 try {
-                    const res = await fetch('http://localhost:3001/api/login', {
+                    const res = await fetch(`${API_LOCAL}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email, password })

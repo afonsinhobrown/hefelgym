@@ -120,6 +120,8 @@ const Layout = () => {
           background-color: var(--bg-dark);
           min-height: 100vh;
           transition: margin 0.3s ease;
+          position: relative;
+          z-index: 10;
         }
 
         .top-header {
