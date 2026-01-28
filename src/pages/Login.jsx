@@ -165,6 +165,12 @@ const Login = () => {
                             token: token,
                             encryptedData: 'local_db_auth'
                         };
+
+                        // Salvar info do ginasio para a Sidebar carregar
+                        if (localData.company) {
+                            localStorage.setItem('hefel_company_v3', JSON.stringify(localData.company));
+                            localStorage.setItem('hefel_company_v2', JSON.stringify(localData.company));
+                        }
                     } else {
                         throw new Error('Falha na API Local');
                     }

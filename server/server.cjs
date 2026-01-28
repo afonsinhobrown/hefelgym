@@ -175,8 +175,8 @@ db.serialize(() => {
     db.run("CREATE INDEX IF NOT EXISTS idx_gym_id_clients ON clients(gym_id)"); // New Index
 
     // Migrações de Faturamento
-    db.run(`CREATE TABLE IF NOT EXISTS gyms (id TEXT PRIMARY KEY, name TEXT, address TEXT, nuit TEXT, created_at TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS system_users (id TEXT PRIMARY KEY, email TEXT UNIQUE, password TEXT, name TEXT, role TEXT, gym_id TEXT, sync_id TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS gyms (id TEXT PRIMARY KEY, name TEXT, address TEXT, nuit TEXT, phone TEXT, email TEXT, logo_url TEXT, created_at TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS system_users (id TEXT PRIMARY KEY, email TEXT UNIQUE, password TEXT, name TEXT, role TEXT, gym_id TEXT, sync_id TEXT, synced INTEGER DEFAULT 0)`);
 
     // 0. SEED: DEFAULT GYM (Hefel Gym Teste)
     db.get("SELECT id FROM gyms WHERE id = 'hefel_gym_v1'", (err, row) => {
@@ -206,11 +206,9 @@ db.serialize(() => {
 
     // Migrations
     db.run("ALTER TABLE invoices ADD COLUMN payment_ref TEXT", () => { });
-    db.run("ALTER TABLE system_users ADD COLUMN gym_id TEXT", (err) => {
-        if (err && !err.message.includes('duplicate column name')) {
-            console.error("Error adding gym_id to system_users:", err.message);
-        }
-    });
+    db.run("ALTER TABLE system_users ADD COLUMN gym_id TEXT", () => { });
+    db.run("ALTER TABLE system_users ADD COLUMN synced INTEGER DEFAULT 0", () => { });
+    db.run("ALTER TABLE gyms ADD COLUMN synced INTEGER DEFAULT 0", () => { });
 });
 
 // === SAAS MODULE (REGISTRO DE GINÁSIOS) ===
@@ -320,7 +318,12 @@ app.get('/api/admin/gyms', (req, res) => {
 // === AUTH MODULE (LOCAL) ===
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
-    db.get("SELECT * FROM system_users WHERE email = ? AND password = ?", [email, password], (err, user) => {
+    db.get(`
+        SELECT u.*, g.name as gym_name, g.address as gym_address, g.nuit as gym_nuit 
+        FROM system_users u 
+        LEFT JOIN gyms g ON u.gym_id = g.id 
+        WHERE u.email = ? AND u.password = ?
+    `, [email, password], (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
         if (user) {
             res.json({
@@ -330,7 +333,13 @@ app.post('/api/login', (req, res) => {
                     name: user.name,
                     role: user.role,
                     id: user.id,
-                    gymId: user.gym_id // Importante para isolar dados
+                    gymId: user.gym_id,
+                    gym_name: user.gym_name
+                },
+                company: {
+                    name: user.gym_name,
+                    address: user.gym_address,
+                    nuit: user.gym_nuit
                 }
             });
         } else {
@@ -870,6 +879,34 @@ const syncToCloud = async () => {
             });
         });
 
+        await new Promise((resolve) => {
+            db.all("SELECT * FROM system_users WHERE synced = 0", async (err, rows) => {
+                if (rows && rows.length) {
+                    console.log(`⬆️ Enviando ${rows.length} utilizadores...`);
+                    for (const row of rows) {
+                        const { synced, ...data } = row;
+                        await supabase.from('system_users').upsert(data);
+                        db.run("UPDATE system_users SET synced = 1 WHERE id = ?", [row.id]);
+                    }
+                }
+                resolve();
+            });
+        });
+
+        await new Promise((resolve) => {
+            db.all("SELECT * FROM gyms WHERE synced = 0", async (err, rows) => {
+                if (rows && rows.length) {
+                    console.log(`⬆️ Enviando ${rows.length} ginásios...`);
+                    for (const row of rows) {
+                        const { synced, ...data } = row;
+                        await supabase.from('gyms').upsert(data);
+                        db.run("UPDATE gyms SET synced = 1 WHERE id = ?", [row.id]);
+                    }
+                }
+                resolve();
+            });
+        });
+
         /* 
         // DOWNLOAD (Cloud -> Local) - DESATIVADO PARA EVITAR SOBREPOSIÇÃO DE DADOS LOCAIS
         const { data: cloudInvoices } = await supabase.from('invoices').select('*').eq('gym_id', GYM_ID);
@@ -883,7 +920,7 @@ const syncToCloud = async () => {
                 stmt.finalize();
             });
         }
-
+ 
         // DOWNLOAD (Cloud -> Local) - RESTAURO DE EMERGÊNCIA DE NOMES
         const { data: cloudClients } = await supabase.from('clients').select('*').eq('gym_id', GYM_ID);
         if (cloudClients && cloudClients.length > 0) {
@@ -896,7 +933,7 @@ const syncToCloud = async () => {
                 stmt.finalize();
             });
         }
-
+ 
         // License
         const { data: license } = await supabase.from('saas_subscriptions').select('*').eq('gym_id', GYM_ID).single();
         if (license) {
