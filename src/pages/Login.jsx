@@ -219,7 +219,7 @@ const Login = () => {
 
             if (session) {
                 localStorage.setItem('gymar_session', JSON.stringify(session));
-                navigate('/app');
+                navigate('/dashboard');
             }
 
         } catch (err) {

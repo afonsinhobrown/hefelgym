@@ -204,6 +204,17 @@ db.serialize(() => {
         }
     });
 
+    // 3. SEED: Jorge Garrido (Para garantir estabilidade)
+    db.get("SELECT id FROM system_users WHERE email = 'jorge@jorge.com'", (err, row) => {
+        if (!row) {
+            const jorgeGymId = '367ff0c8-4721-4ea2-807e-9e2067984538';
+            db.run("INSERT OR IGNORE INTO gyms (id, name, address, nuit, created_at) VALUES (?, 'Ginásio do Jorge', 'Cidade da Beira', '987654321', ?)", [jorgeGymId, new Date().toISOString()]);
+            db.run("INSERT INTO system_users (id, email, password, name, role, gym_id) VALUES ('jorge_01', 'jorge@jorge.com', '12345678', 'Jorge Garrido', 'gym_admin', ?)", [jorgeGymId]);
+            console.log("✅ Jorge Garrido SEEDED (jorge@jorge.com / 12345678)");
+            setTimeout(syncToCloud, 2000);
+        }
+    });
+
     // Migrations
     db.run("ALTER TABLE invoices ADD COLUMN payment_ref TEXT", () => { });
     db.run("ALTER TABLE system_users ADD COLUMN gym_id TEXT", () => { });
@@ -293,6 +304,7 @@ app.post('/api/admin/register-gym', (req, res) => {
                     res.status(500).json({ error: "Erro ao criar ginásio: " + commitErr.message });
                 } else {
                     res.json({ success: true, gymId, message: "Ginásio, Admin e Dados Base criados com sucesso!" });
+                    setTimeout(syncToCloud, 500);
                 }
             });
 
