@@ -11,7 +11,7 @@ import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import Users from './pages/Users';        // Antes mapeado para 'utentes'
 import Hardware from './pages/Hardware';  // NOVO
-import Products from './pages/Products';
+import Inventory from './pages/Inventory';
 import Settings from './pages/Settings';
 import Invoices from './pages/Invoices';
 import Attendance from './pages/Attendance';
@@ -49,7 +49,7 @@ function App() {
           <Route path="/pos" element={<POS />} />
           <Route path="/users" element={<Users />} />
           <Route path="/hardware" element={<Hardware />} />
-          <Route path="/products" element={<Products />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/invoices" element={<Invoices />} />
 

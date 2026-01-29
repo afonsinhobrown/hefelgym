@@ -205,15 +205,31 @@ const POS = () => {
         }
     };
 
+    const [received, setReceived] = useState(0);
+    const [change, setChange] = useState(0);
+
+    const calculateChange = (val) => {
+        const total = calculateTotal();
+        setReceived(val);
+        setChange(val > total ? val - total : 0);
+    };
+
     const confirmPayment = (e) => {
         e.preventDefault();
+        const total = calculateTotal();
+        if (payMethod === 'cash' && received < total) {
+            return alert(`Valor recebido (${received} MT) é inferior ao total (${total} MT)`);
+        }
+
         const paymentDetails = {
             method: payMethod,
             ref: payRef || 'N/A',
+            received: received,
+            change: change,
             date: new Date().toISOString()
         };
 
-        if (window.confirm(`Confirmar Pagamento de ${calculateTotal()} MT via ${payMethod.toUpperCase()}?`)) {
+        if (window.confirm(`Confirmar Pagamento de ${total} MT via ${payMethod.toUpperCase()}?`)) {
             finalizeSale('pago', paymentDetails);
         }
     };
@@ -448,13 +464,57 @@ const POS = () => {
                             <form onSubmit={confirmPayment} className="payment-form animate-fade-in">
                                 <div className="form-group mb-2">
                                     <label className="text-sm text-muted block mb-1">Método de Pagamento</label>
-                                    <select className="input w-full" value={payMethod} onChange={e => setPayMethod(e.target.value)}>
+                                    <select className="input w-full" value={payMethod} onChange={e => {
+                                        setPayMethod(e.target.value);
+                                        if (e.target.value !== 'cash') { setReceived(calculateTotal()); setChange(0); }
+                                    }}>
                                         <option value="cash">Numerário (Dinheiro)</option>
                                         <option value="mpesa">M-Pesa</option>
                                         <option value="emola">e-Mola</option>
                                         <option value="pos">POS / Cartão</option>
                                     </select>
                                 </div>
+                                {payMethod === 'cash' && (
+                                    <div className="cash-payment-section animate-fade-in">
+                                        <div className="quick-cash-grid mb-2">
+                                            {[200, 500, 1000, 2000].map(amt => (
+                                                <button
+                                                    key={amt}
+                                                    type="button"
+                                                    className="btn btn-outline text-xs px-2 py-1"
+                                                    onClick={() => calculateChange(amt)}
+                                                >
+                                                    {amt}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline text-xs px-2 py-1 border-emerald-500/50 text-emerald-500"
+                                                onClick={() => calculateChange(calculateTotal())}
+                                            >
+                                                Exato
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 mb-2">
+                                            <div className="form-group">
+                                                <label className="text-xs text-muted block mb-1">Recebido</label>
+                                                <input
+                                                    type="number"
+                                                    className="input w-full font-bold"
+                                                    value={received || ''}
+                                                    onChange={e => calculateChange(Number(e.target.value))}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="text-xs text-muted block mb-1">Troco</label>
+                                                <div className="input w-full bg-slate-800 font-bold text-emerald-500 flex items-center h-full">
+                                                    {change.toLocaleString()} MT
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {payMethod !== 'cash' && (
                                     <div className="form-group mb-4">
                                         <label className="text-sm text-muted block mb-1">Ref. / Nº Talão</label>
@@ -591,6 +651,10 @@ const POS = () => {
         .search-box { position: relative; max-width: 300px; }
         .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
         .search-input { padding-left: 2.5rem; width: 100%; }
+
+        .quick-cash-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; padding: 2px; }
+        .quick-cash-grid button { padding: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
+        .quick-cash-grid button:hover { border-color: var(--primary); color: var(--primary); }
 
         /* Modal Styles */
         .success-modal { text-align: center; padding: 2.5rem; width: 400px; max-width: 90%; }

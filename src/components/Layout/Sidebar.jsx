@@ -85,7 +85,7 @@ const Sidebar = ({ onNavItemClick }) => {
     { icon: Users, label: 'Utentes', path: '/users' },
     { icon: CreditCard, label: 'Planos', path: '/plans' },
     { icon: CalendarDays, label: 'Aulas', path: '/classes' },
-    { icon: Package, label: 'Produtos', path: '/products' },
+    { icon: Package, label: 'Inventário', path: '/inventory' },
     { icon: Dumbbell, label: 'Treinos', path: '/trainings' },
     { icon: BarChart3, label: 'Relatórios', path: '/reports' },
   ];
@@ -95,7 +95,7 @@ const Sidebar = ({ onNavItemClick }) => {
     { icon: DollarSign, label: 'Mensalidades', path: '/payments' },
     { icon: Receipt, label: 'Faturação', path: '/invoices' },
     { icon: Users, label: 'Utentes', path: '/users' },
-    { icon: Package, label: 'Produtos', path: '/products' },
+    { icon: Package, label: 'Inventário', path: '/inventory' },
   ];
 
   let itemsToShow = [];

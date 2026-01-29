@@ -69,14 +69,17 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
                             <div className="form-group">
                                 <label>Tipo de Contrato</label>
                                 <select className="input w-full" value={formData.type || 'internal'} onChange={e => setFormData({ ...formData, type: e.target.value })}>
-                                    <option value="internal">Interno (Funcionário)</option>
-                                    <option value="external">Externo (PT Freelancer)</option>
-                                    <option value="intern">Estagiário</option>
-                                    <option value="manager">Coordenador</option>
+                                    <option value="internal">Instrutor (Staff)</option>
+                                    <option value="receptionist">Rececionista</option>
+                                    <option value="cleaner">Limpeza</option>
+                                    <option value="waiter">Barman / Waiter</option>
+                                    <option value="security">Segurança</option>
+                                    <option value="manager">Gerente</option>
+                                    <option value="external">PT Externo (Freelancer)</option>
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label>Especialidade</label>
+                                <label>Especialidade / Função</label>
                                 <input type="text" className="input w-full"
                                     value={formData.specialty || ''} onChange={e => setFormData({ ...formData, specialty: e.target.value })}
                                 />
@@ -92,7 +95,7 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
                             </div>
                             <div className="form-group">
                                 <label>
-                                    {formData.type === 'external' ? 'Taxa de Uso (MT)' : 'Salário/Comissão (MT)'}
+                                    {formData.type === 'external' ? 'Taxa de Uso (MT)' : 'Salário Base (MT)'}
                                 </label>
                                 <input type="number" className="input w-full"
                                     value={formData.rate || 0} onChange={e => setFormData({ ...formData, rate: parseFloat(e.target.value) })}
@@ -156,11 +159,14 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
 // Helper for labels
 const getInstructorLabel = (type) => {
     switch (type) {
-        case 'internal': return 'Interno / Staff';
-        case 'external': return 'Externo / Freelancer';
-        case 'intern': return 'Estagiário';
-        case 'manager': return 'Coordenador';
-        default: return 'Profissional';
+        case 'internal': return 'Instrutor';
+        case 'receptionist': return 'Rececionista';
+        case 'cleaner': return 'Limpeza';
+        case 'waiter': return 'Bar / Waiter';
+        case 'security': return 'Segurança';
+        case 'manager': return 'Coordenador / Gerente';
+        case 'external': return 'Freelancer / PT';
+        default: return 'Colaborador';
     }
 };
 
@@ -280,17 +286,17 @@ const Instructors = () => {
         }
     };
 
-    const isInternalType = (type) => ['internal', 'intern', 'manager'].includes(type);
+    const isInternalType = (type) => ['internal', 'receptionist', 'cleaner', 'waiter', 'security', 'manager', 'intern'].includes(type);
 
     return (
         <div className="instructors-page animate-fade-in">
             <div className="page-header">
                 <div className="header-title">
-                    <h2>Gestão de Profissionais</h2>
-                    <p>Instrutores Internos e PTs Externos</p>
+                    <h2>Gestão de Pessoal e Staff</h2>
+                    <p>Instrutores, Rececionistas e Equipa de Apoio</p>
                 </div>
                 <button className="btn btn-primary" onClick={() => setIsFormOpen(true)}>
-                    <UserPlus size={20} /> Novo Profissional
+                    <UserPlus size={20} /> Novo Colaborador
                 </button>
             </div>
 
