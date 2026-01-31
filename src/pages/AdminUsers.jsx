@@ -257,7 +257,7 @@ const AdminUsers = () => {
                                         value={formData.staffId || ''}
                                         onChange={(e) => {
                                             const selectedId = e.target.value;
-                                            const staff = staffList.find(s => s.id === selectedId);
+                                            const staff = staffList.find(s => String(s.id) === String(selectedId));
                                             if (staff) {
                                                 setFormData({
                                                     ...formData,
