@@ -269,6 +269,7 @@ db.serialize(() => {
     db.run("ALTER TABLE system_users ADD COLUMN gym_id TEXT", () => { });
     db.run("ALTER TABLE system_users ADD COLUMN synced INTEGER DEFAULT 0", () => { });
     db.run("ALTER TABLE gyms ADD COLUMN synced INTEGER DEFAULT 0", () => { });
+    db.run("ALTER TABLE system_users ADD COLUMN status TEXT DEFAULT 'active'", () => { });
 });
 
 // === SAAS MODULE (REGISTRO DE GINÁSIOS) ===
@@ -1972,6 +1973,40 @@ app.put('/api/system-users/change-password', (req, res) => {
             if (updErr) return res.status(500).json({ error: updErr.message });
             res.json({ success: true, message: "Palavra-passe atualizada com sucesso!" });
         });
+    });
+});
+
+// 4. Atualizar Utilizador (Nome, Email, Role, Status)
+app.put('/api/system-users/:id', (req, res) => {
+    const { name, email, role, status, password } = req.body;
+    const { id } = req.params;
+
+    // Se vier password, atualizamos, senão mantemos.
+    // Query dinâmica simplificada
+    let sql = "UPDATE system_users SET name = ?, email = ?, role = ?, status = ?, synced = 0";
+    let params = [name, email, role, status || 'active'];
+
+    if (password && password.trim() !== '') {
+        sql += ", password = ?";
+        params.push(password);
+    }
+
+    sql += " WHERE id = ?";
+    params.push(id);
+
+    db.run(sql, params, function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, message: "Utilizador atualizado com sucesso!" });
+    });
+});
+
+// 5. Eliminar Utilizador
+app.delete('/api/system-users/:id', (req, res) => {
+    const { id } = req.params;
+    db.run("DELETE FROM system_users WHERE id = ?", [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: "Utilizador não encontrado." });
+        res.json({ success: true, message: "Utilizador eliminado com sucesso!" });
     });
 });
 
