@@ -150,66 +150,68 @@ const AdminUsers = () => {
                 </div>
             </div>
 
-            <div className="card w-full overflow-hidden border border-slate-700 rounded-lg bg-slate-800">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-900 text-gray-400 text-xs uppercase font-bold border-b border-slate-700">
-                            <tr>
-                                <th className="p-4 w-1/3">Nome / Staff</th>
-                                <th className="p-4 w-1/3">Email (Login)</th>
-                                <th className="p-4 w-1/6 text-center">Cargo</th>
-                                <th className="p-4 w-1/6 text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-700">
-                            {loading ? (
-                                <tr><td colSpan="4" className="p-8 text-center text-gray-500">A carregar...</td></tr>
-                            ) : filteredUsers.length === 0 ? (
-                                <tr><td colSpan="4" className="p-8 text-center text-gray-500 italic">Nenhum utilizador encontrado.</td></tr>
-                            ) : filteredUsers.map((u) => (
-                                <tr key={u.id} className="hover:bg-slate-700/50 transition-colors">
-                                    <td className="p-4 align-middle">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 border border-slate-600 font-bold flex-shrink-0">
-                                                {u.name?.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="font-bold text-white text-sm truncate">{u.name}</p>
-                                                {u.staffId && <span className="text-[10px] bg-blue-900 text-blue-300 px-1 rounded border border-blue-800">STAFF VINCULADO</span>}
-                                            </div>
+            <div className="w-full overflow-hidden border border-slate-700 rounded-lg bg-slate-800 shadow-xl">
+                <table className="w-full table-fixed border-collapse">
+                    <thead className="bg-slate-900 text-gray-200 text-xs uppercase font-bold border-b border-slate-600">
+                        <tr>
+                            <th className="p-4 text-left" style={{ width: '35%' }}>Nome / Staff</th>
+                            <th className="p-4 text-left" style={{ width: '30%' }}>Email (Login)</th>
+                            <th className="p-4 text-center" style={{ width: '15%' }}>Cargo</th>
+                            <th className="p-4 text-center" style={{ width: '20%' }}>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                        {loading ? (
+                            <tr><td colSpan="4" className="p-8 text-center text-gray-400">A carregar...</td></tr>
+                        ) : filteredUsers.length === 0 ? (
+                            <tr><td colSpan="4" className="p-8 text-center text-gray-400">Nenhum utilizador encontrado.</td></tr>
+                        ) : filteredUsers.map((u) => (
+                            <tr key={u.id} className="hover:bg-slate-700/50 transition-colors">
+                                <td className="p-4 align-middle overflow-hidden">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 min-w-[2.5rem] rounded-full bg-slate-600 flex items-center justify-center text-white font-bold">
+                                            {u.name?.charAt(0).toUpperCase()}
                                         </div>
-                                    </td>
-                                    <td className="p-4 align-middle text-sm text-gray-300 font-mono">
-                                        {u.email}
-                                    </td>
-                                    <td className="p-4 align-middle text-center">
-                                        {getRoleBadge(u.role)}
-                                    </td>
-                                    <td className="p-4 align-middle text-center">
-                                        <div className="flex items-center justify-center gap-2">
+                                        <div className="truncate">
+                                            <div className="font-bold text-white text-sm truncate">{u.name}</div>
+                                            {u.staffId && <div className="text-xs text-blue-300">Staff Vinculado</div>}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="p-4 align-middle text-sm text-gray-300 truncate font-mono" title={u.email}>
+                                    {u.email}
+                                </td>
+                                <td className="p-4 align-middle text-center">
+                                    {getRoleBadge(u.role)}
+                                </td>
+                                <td className="p-4 align-middle text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => openEdit(u)}
+                                            className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded shadow-md transition-all"
+                                            title="Editar"
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                        {u.role !== 'gym_admin' && (
                                             <button
-                                                onClick={() => openEdit(u)}
-                                                className="p-2 rounded hover:bg-slate-600 text-blue-400"
-                                                title="Editar"
+                                                onClick={() => {
+                                                    if (window.confirm(`Tem a certeza que deseja remover o acesso de "${u.name}"?\nIsso NÃO apaga o funcionário da base de dados, apenas o login.`)) {
+                                                        handleDelete(u.id);
+                                                    }
+                                                }}
+                                                className="bg-red-600 hover:bg-red-500 text-white p-2 rounded shadow-md transition-all"
+                                                title="Eliminar Login"
                                             >
-                                                <Edit size={18} />
+                                                <Trash2 size={16} />
                                             </button>
-                                            {u.role !== 'gym_admin' && (
-                                                <button
-                                                    onClick={() => handleDelete(u.id)}
-                                                    className="p-2 rounded hover:bg-slate-600 text-red-400"
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
 
             {/* MODAL CRIAR / EDITAR */}
