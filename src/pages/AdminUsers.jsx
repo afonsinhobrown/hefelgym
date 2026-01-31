@@ -101,94 +101,116 @@ const AdminUsers = () => {
     );
 
     const getRoleBadge = (role) => {
+        // Estilos inline para os badges
+        const badgeStyle = { padding: '4px 12px', borderRadius: '9999px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid transparent' };
+
         switch (role) {
             case 'gym_admin':
-                return <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)] flex items-center gap-1"><Shield size={12} /> ADMIN</span>;
+                return <span style={{ ...badgeStyle, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Shield size={12} /> ADMIN</span>;
             case 'manager':
-                return <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20 flex items-center gap-1"><Briefcase size={12} /> GERENTE</span>;
+                return <span style={{ ...badgeStyle, backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', borderColor: 'rgba(59, 130, 246, 0.2)' }}><Briefcase size={12} /> GERENTE</span>;
             default:
-                return <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20 flex items-center gap-1"><User size={12} /> OPERADOR</span>;
+                return <span style={{ ...badgeStyle, backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.2)' }}><User size={12} /> OPERADOR</span>;
         }
     };
 
+    // Estilos inline para garantir a visualização correta independentemente do Tailwind
+    const styles = {
+        container: { padding: '24px', color: 'white', fontFamily: 'system-ui, sans-serif' },
+        header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
+        title: { fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0', color: 'white' },
+        subtitle: { color: '#94a3b8', margin: 0, fontSize: '14px' },
+        card: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
+        infoBox: { backgroundColor: 'rgba(30, 58, 138, 0.2)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', gap: '12px' },
+        table: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+        th: { backgroundColor: '#0f172a', padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#94a3b8', borderBottom: '1px solid #334155' },
+        td: { padding: '16px', borderBottom: '1px solid #334155', verticalAlign: 'middle', color: '#e2e8f0' }
+    };
+
     return (
-        <div className="users-page animate-fade-in p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div style={styles.container}>
+            <div style={styles.header}>
                 <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Equipa do Ginásio</h2>
-                    <p className="text-gray-400 text-sm">Gerir acessos de Gerentes e Operadores.</p>
+                    <h2 style={styles.title}>Equipa do Ginásio</h2>
+                    <p style={styles.subtitle}>Gerir acessos de Gerentes e Operadores.</p>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:flex-none">
-                        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }} />
                         <input
                             type="text"
                             placeholder="Buscar utilizador..."
-                            className="w-full md:w-64 bg-slate-900 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500"
+                            style={{
+                                backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
+                                padding: '8px 8px 8px 36px', color: 'white', outline: 'none', width: '250px'
+                            }}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button
                         onClick={() => { setFormData({ id: null, name: '', email: '', password: '', role: 'operator' }); setShowModal(true); }}
-                        className="btn btn-primary whitespace-nowrap flex items-center gap-2"
+                        style={{
+                            backgroundColor: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '6px',
+                            border: 'none', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'
+                        }}
                     >
                         <Plus size={18} /> Novo Utilizador
                     </button>
                 </div>
             </div>
 
-            <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
-                <Briefcase size={20} className="text-blue-400 mt-1 flex-shrink-0" />
+            <div style={styles.infoBox}>
+                <Briefcase size={20} style={{ color: '#60a5fa', marginTop: '4px' }} />
                 <div>
-                    <h3 className="text-blue-400 font-bold text-sm mb-1">Aviso Importante</h3>
-                    <p className="text-gray-300 text-xs">
+                    <h3 style={{ color: '#60a5fa', fontWeight: 'bold', fontSize: '14px', margin: '0 0 4px 0' }}>Aviso Importante</h3>
+                    <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
                         Esta secção serve apenas para gerir <strong>Logins de Acesso</strong>.<br />
-                        Para Salários e Contratos, vá para <a href="/instructors" className="text-blue-400 font-bold hover:underline">Equipa & Salários</a>.
+                        Para Salários e Contratos, vá para <span style={{ color: '#60a5fa', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => window.location.href = '/instructors'}>Equipa & Salários</span>.
                     </p>
                 </div>
             </div>
 
-            <div className="w-full overflow-hidden border border-slate-700 rounded-lg bg-slate-800 shadow-xl">
-                <table className="w-full table-fixed border-collapse">
-                    <thead className="bg-slate-900 text-gray-200 text-xs uppercase font-bold border-b border-slate-600">
+            <div style={styles.card}>
+                <table style={styles.table}>
+                    <thead>
                         <tr>
-                            <th className="p-4 text-left" style={{ width: '35%' }}>Nome / Staff</th>
-                            <th className="p-4 text-left" style={{ width: '30%' }}>Email (Login)</th>
-                            <th className="p-4 text-center" style={{ width: '15%' }}>Cargo</th>
-                            <th className="p-4 text-center" style={{ width: '20%' }}>Ações</th>
+                            <th style={{ ...styles.th, width: '35%' }}>Nome / Staff</th>
+                            <th style={{ ...styles.th, width: '30%' }}>Email (Login)</th>
+                            <th style={{ ...styles.th, width: '15%', textAlign: 'center' }}>Cargo</th>
+                            <th style={{ ...styles.th, width: '20%', textAlign: 'center' }}>Ações</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700">
+                    <tbody>
                         {loading ? (
-                            <tr><td colSpan="4" className="p-8 text-center text-gray-400">A carregar...</td></tr>
+                            <tr><td colSpan="4" style={{ ...styles.td, textAlign: 'center', color: '#64748b' }}>A carregar...</td></tr>
                         ) : filteredUsers.length === 0 ? (
-                            <tr><td colSpan="4" className="p-8 text-center text-gray-400">Nenhum utilizador encontrado.</td></tr>
+                            <tr><td colSpan="4" style={{ ...styles.td, textAlign: 'center', color: '#64748b' }}>Nenhum utilizador encontrado.</td></tr>
                         ) : filteredUsers.map((u) => (
-                            <tr key={u.id} className="hover:bg-slate-700/50 transition-colors">
-                                <td className="p-4 align-middle overflow-hidden">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 min-w-[2.5rem] rounded-full bg-slate-600 flex items-center justify-center text-white font-bold">
+                            <tr key={u.id} style={{ backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#334155'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                <td style={{ ...styles.td }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
                                             {u.name?.charAt(0).toUpperCase()}
                                         </div>
-                                        <div className="truncate">
-                                            <div className="font-bold text-white text-sm truncate">{u.name}</div>
-                                            {u.staffId && <div className="text-xs text-blue-300">Staff Vinculado</div>}
+                                        <div style={{ overflow: 'hidden' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</div>
+                                            {u.staffId && <div style={{ fontSize: '10px', backgroundColor: '#1e3a8a', color: '#93c5fd', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>VINCULADO</div>}
                                         </div>
                                     </div>
                                 </td>
-                                <td className="p-4 align-middle text-sm text-gray-300 truncate font-mono" title={u.email}>
+                                <td style={{ ...styles.td, fontFamily: 'monospace', fontSize: '13px' }}>
                                     {u.email}
                                 </td>
-                                <td className="p-4 align-middle text-center">
+                                <td style={{ ...styles.td, textAlign: 'center' }}>
                                     {getRoleBadge(u.role)}
                                 </td>
-                                <td className="p-4 align-middle text-center">
-                                    <div className="flex items-center justify-center gap-2">
+                                <td style={{ ...styles.td, textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                                         <button
                                             onClick={() => openEdit(u)}
-                                            className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded shadow-md transition-all"
+                                            style={{ padding: '8px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             title="Editar"
                                         >
                                             <Edit size={16} />
@@ -200,7 +222,7 @@ const AdminUsers = () => {
                                                         handleDelete(u.id);
                                                     }
                                                 }}
-                                                className="bg-red-600 hover:bg-red-500 text-white p-2 rounded shadow-md transition-all"
+                                                style={{ padding: '8px', borderRadius: '6px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                 title="Eliminar Login"
                                             >
                                                 <Trash2 size={16} />
@@ -216,23 +238,22 @@ const AdminUsers = () => {
 
             {/* MODAL CRIAR / EDITAR */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl relative">
-                        <div className="absolute inset-0 bg-blue-500/5 rounded-2xl pointer-events-none"></div>
-                        <div className="flex justify-between items-center mb-6 relative z-10">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                {formData.id ? <Edit size={20} className="text-blue-400" /> : <Plus size={20} className="text-blue-400" />}
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                    <div style={{ backgroundColor: '#0f172a', padding: '24px', borderRadius: '16px', width: '100%', maxWidth: '450px', border: '1px solid #334155', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {formData.id ? <Edit size={20} color="#60a5fa" /> : <Plus size={20} color="#60a5fa" />}
                                 {formData.id ? 'Editar Utilizador' : 'Novo Membro'}
                             </h2>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white p-1 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+                            <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={24} /></button>
                         </div>
 
-                        <form onSubmit={handleSave} className="space-y-4 relative z-10">
-                            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
+                        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 <div>
-                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Membro do Staff</label>
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Membro do Staff</label>
                                     <select
-                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none cursor-pointer"
+                                        style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '8px', padding: '10px', color: 'white', outline: 'none' }}
                                         value={formData.staffId || ''}
                                         onChange={(e) => {
                                             const selectedId = e.target.value;
@@ -242,47 +263,47 @@ const AdminUsers = () => {
                                                     ...formData,
                                                     staffId: staff.id,
                                                     name: staff.name,
-                                                    // Auto-generate email based on name if not present
                                                     email: staff.email || `${staff.name.toLowerCase().split(' ')[0]}@hefelgym.com`
                                                 });
                                             } else {
-                                                // Caso seja 'manual' ou vazio
                                                 setFormData({ ...formData, staffId: '', name: '' });
                                             }
                                         }}
-                                        disabled={!!formData.id} // Disable if editing existing user (optional, but safer)
+                                        disabled={!!formData.id}
                                     >
                                         <option value="">Selecione um funcionário...</option>
                                         {staffList.map(s => (
                                             <option key={s.id} value={s.id}>{s.name} ({s.type === 'manager' ? 'Gerência' : 'Staff'})</option>
                                         ))}
                                     </select>
-                                    {/* Fallback Display Name if editing or manually set */}
-                                    {formData.name && <p className="text-xs text-blue-400 mt-1 ml-1">Selecionado: {formData.name}</p>}
+                                    {formData.name && <p style={{ fontSize: '12px', color: '#60a5fa', marginTop: '4px' }}>Selecionado: {formData.name}</p>}
                                 </div>
                                 <div>
-                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Email (Login)</label>
-                                    <input type="email" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono text-sm"
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Email (Login)</label>
+                                    <input type="email"
+                                        style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '8px', padding: '10px', color: 'white', outline: 'none', fontFamily: 'monospace' }}
                                         required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="usuario@hefelgym.com" />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1 flex justify-between">
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>
                                         Senha
-                                        {formData.id && <span className="text-[10px] text-yellow-500/80 font-normal normal-case">(Deixe em branco para manter)</span>}
+                                        {formData.id && <span style={{ fontSize: '10px', color: '#eab308', fontWeight: 'normal', textTransform: 'none', marginLeft: '6px' }}>(Deixe em branco para manter)</span>}
                                     </label>
-                                    <div className="relative">
-                                        <input type="text" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono text-sm pl-10"
+                                    <div style={{ position: 'relative' }}>
+                                        <input type="text"
+                                            style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '8px', padding: '10px 10px 10px 36px', color: 'white', outline: 'none', fontFamily: 'monospace' }}
                                             required={!formData.id}
                                             value={formData.password}
                                             onChange={e => setFormData({ ...formData, password: e.target.value })}
                                             placeholder="••••••••" />
-                                        <Lock size={14} className="absolute left-3 top-3 text-slate-500" />
+                                        <Lock size={14} style={{ position: 'absolute', left: '12px', top: '14px', color: '#64748b' }} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Função / Cargo</label>
-                                    <select className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Função / Cargo</label>
+                                    <select
+                                        style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '8px', padding: '10px', color: 'white', outline: 'none' }}
                                         value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
                                         <option value="operator">Operador (Apenas Vendas/Pagamentos)</option>
                                         <option value="manager">Gerente (Acesso Total Local)</option>
@@ -291,12 +312,12 @@ const AdminUsers = () => {
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-bold border border-slate-700 transition-colors">
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: '#334155', color: 'white', border: '1px solid #475569', fontWeight: 'bold', cursor: 'pointer' }}>
                                     Cancelar
                                 </button>
-                                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-3 rounded-lg font-bold shadow-lg shadow-blue-900/20 flex justify-center items-center gap-2 transition-all transform hover:scale-[1.02]">
-                                    <CheckCircle size={18} /> {formData.id ? 'Salvar Alterações' : 'Criar Conta'}
+                                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: '#2563eb', color: 'white', border: 'none', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <CheckCircle size={18} /> {formData.id ? 'Salvar' : 'Criar Conta'}
                                 </button>
                             </div>
                         </form>
