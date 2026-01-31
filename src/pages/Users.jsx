@@ -395,7 +395,7 @@ const ClientModal = ({ isOpen, onClose, onSave, plans, initialData }) => {
 
     // Payment State (Only for New Users)
     const [payNow, setPayNow] = useState(false);
-    const [regFee, setRegFee] = useState(500); // Default Fee example
+    const [regFee, setRegFee] = useState(700); // Updated to 700 MT based on Table
     const [paymentMethod, setPaymentMethod] = useState('Numerário');
 
     useEffect(() => {
@@ -478,7 +478,7 @@ const ClientModal = ({ isOpen, onClose, onSave, plans, initialData }) => {
                                 <div className="space-y-3 animate-fade-in pl-1">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="text-xs text-slate-400">Taxa de Inscrição (MT)</label>
+                                            <label className="text-xs text-slate-400">Taxa de Inscrição (Inclui Cartão + Plano)</label>
                                             <input
                                                 type="number"
                                                 className="input text-right"
@@ -665,7 +665,7 @@ const Users = () => {
 
                 const items = [];
                 // Item 1: Inscrição
-                if (fee > 0) items.push({ productId: 'FEE', name: 'Taxa de Inscrição (Jóia)', price: fee, qty: 1, type: 'fee' });
+                if (fee > 0) items.push({ productId: 'FEE', name: 'Taxa de Inscrição (Inclui Cartão + Plano Inicial)', price: fee, qty: 1, type: 'fee' });
                 // Item 2: Mensalidade
                 if (planPrice > 0) items.push({ productId: 'SUBSCRIPTION', name: `Mensalidade 1º Mês (${selectedPlan.name})`, price: planPrice, qty: 1, type: 'subscription' });
 

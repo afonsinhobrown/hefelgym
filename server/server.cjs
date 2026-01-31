@@ -264,6 +264,25 @@ db.serialize(() => {
         }
     });
 
+    // 4. SEED: DEFAULT PLANS (Hefel Gym Official Pricing)
+    db.get("SELECT id FROM plans WHERE id = 'plano_mensal_2000'", (err, row) => {
+        if (!row) {
+            console.log("🛠️ Seeding Planos Oficiais Hefel Gym...");
+            const plans = [
+                { id: 'plano_diario', name: 'Diário', price: 300, duration: 1 },
+                { id: 'plano_semanal', name: 'Pacote Semanal', price: 850, duration: 7 },
+                { id: 'plano_fds', name: 'Finais de Semana (Mensal)', price: 850, duration: 30 },
+                { id: 'plano_mensal_2000', name: 'Mensalidade Geral (Full Day)', price: 2000, duration: 30 }
+            ];
+
+            plans.forEach(p => {
+                db.run(`INSERT OR REPLACE INTO plans (id, name, price, duration, features, synced) VALUES (?, ?, ?, ?, 'Acesso Geral', 0)`,
+                    [p.id, p.name, p.price, p.duration]);
+            });
+            console.log("✅ Planos Oficiais inseridos.");
+        }
+    });
+
     // Migrations
     db.run("ALTER TABLE invoices ADD COLUMN payment_ref TEXT", () => { });
     db.run("ALTER TABLE system_users ADD COLUMN gym_id TEXT", () => { });
