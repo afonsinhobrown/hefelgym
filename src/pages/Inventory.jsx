@@ -31,17 +31,19 @@ const ProductModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
         cost_price: '',
         stock: '',
         category: 'Outros',
-        location_id: ''
+        location_id: '',
+        photo_url: ''
     });
 
     useEffect(() => {
         if (initialData) {
             setFormData({
                 ...initialData,
-                location_id: initialData.location_id || ''
+                location_id: initialData.location_id || '',
+                photo_url: initialData.photo_url || ''
             });
         } else {
-            setFormData({ name: '', price: '', cost_price: '', stock: '', category: 'Outros', location_id: '' });
+            setFormData({ name: '', price: '', cost_price: '', stock: '', category: 'Outros', location_id: '', photo_url: '' });
         }
     }, [initialData, isOpen]);
 
@@ -105,6 +107,10 @@ const ProductModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
                             </select>
                         </div>
                     </div>
+                    <div className="form-group mb-4">
+                        <label>URL da Imagem do Produto</label>
+                        <input type="text" className="input w-full" placeholder="https://exemplo.com/imagem.png" value={formData.photo_url} onChange={e => setFormData({ ...formData, photo_url: e.target.value })} />
+                    </div>
                     <div className="modal-footer">
                         <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
                         <button type="submit" className="btn btn-primary">Salvar</button>
@@ -141,9 +147,15 @@ const EquipmentModal = ({ isOpen, onClose, onSave, initialData, locations }) => 
                     <button onClick={onClose} className="close-btn"><X size={20} /></button>
                 </div>
                 <form onSubmit={(e) => { e.preventDefault(); onSave(formData); onClose(); }}>
-                    <div className="form-group mb-4">
-                        <label>Nome do Equipamento</label>
-                        <input required type="text" className="input w-full" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                    <div className="grid-2 mb-4">
+                        <div className="form-group">
+                            <label>Nome do Equipamento</label>
+                            <input required type="text" className="input w-full" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label>URL da Imagem</label>
+                            <input type="text" className="input w-full" value={formData.photo_url || ''} onChange={e => setFormData({ ...formData, photo_url: e.target.value })} placeholder="Link da foto..." />
+                        </div>
                     </div>
                     <div className="form-group mb-4">
                         <label>Descrição / Especificações</label>
@@ -231,6 +243,59 @@ const LocationModal = ({ isOpen, onClose, onSave }) => {
     );
 };
 
+const GeneralExpenseModal = ({ isOpen, onClose, onSave }) => {
+    const [formData, setFormData] = useState({ title: '', amount: '', category: 'Outros', responsible: '', status: 'pago' });
+    if (!isOpen) return null;
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content animate-fade-in" style={{ maxWidth: '450px' }}>
+                <div className="modal-header">
+                    <h3>Nova Despesa Geral</h3>
+                    <button onClick={onClose} className="close-btn"><X size={20} /></button>
+                </div>
+                <form onSubmit={e => { e.preventDefault(); onSave(formData); onClose(); }}>
+                    <div className="form-group mb-3">
+                        <label>Título / Nome da Despesa</label>
+                        <input required type="text" className="input w-full" placeholder="Ex: Renda Mensal, Combustível..." value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                    </div>
+                    <div className="grid-2 mb-3">
+                        <div className="form-group">
+                            <label>Valor (MT)</label>
+                            <input required type="number" className="input w-full" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label>Categoria</label>
+                            <select className="input w-full" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                                <option value="Renda">Renda</option>
+                                <option value="Energia">Energia / Água</option>
+                                <option value="Combustível">Combustível</option>
+                                <option value="Salários">Salários</option>
+                                <option value="Manutenção">Manutenção</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid-2 mb-4">
+                        <div className="form-group">
+                            <label>Responsável</label>
+                            <input required type="text" className="input w-full" placeholder="Quem pagou?" value={formData.responsible} onChange={e => setFormData({ ...formData, responsible: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label>Estado</label>
+                            <select className="input w-full" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
+                                <option value="pago">Pago</option>
+                                <option value="pendente">Pendente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary w-full">Registar Despesa</button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 const Inventory = () => {
     const [products, setProducts] = useState([]);
     const [equipment, setEquipment] = useState([]);
@@ -245,6 +310,7 @@ const Inventory = () => {
     const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+    const [isGeneralExpenseModalOpen, setIsGeneralExpenseModalOpen] = useState(false);
 
     const [editingItem, setEditingItem] = useState(null);
     const [restockingItem, setRestockingItem] = useState(null);
@@ -253,17 +319,25 @@ const Inventory = () => {
         try {
             setLoading(true);
             await db.init();
-            const [p, e, l, ex, invs] = await Promise.all([
+            const [p, e, l, pex, gex, invs] = await Promise.all([
                 db.inventory.getAll(),
                 db.equipment.getAll(),
                 db.locations.getAll(),
                 db.expenses.getProducts(),
+                db.expenses.getAll(),
                 db.invoices.getAll()
             ]);
             setProducts(Array.isArray(p) ? p : []);
             setEquipment(Array.isArray(e) ? e : []);
             setLocations(Array.isArray(l) ? l : []);
-            setExpenses(Array.isArray(ex) ? ex : []);
+
+            // Unificar despesas para histórico
+            const allExpenses = [
+                ...(Array.isArray(pex) ? pex.map(x => ({ ...x, type: 'product' })) : []),
+                ...(Array.isArray(gex) ? gex.map(x => ({ ...x, type: 'general', product_name: x.title || x.description })) : [])
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            setExpenses(allExpenses);
 
             const prodSales = [];
             (invs || []).forEach(inv => {
@@ -300,6 +374,11 @@ const Inventory = () => {
 
     const handleRestock = async (data) => {
         await db.expenses.createProductExpense({ ...data, product_id: restockingItem.id, product_name: restockingItem.name });
+        loadData();
+    };
+
+    const handleSaveGeneralExpense = async (data) => {
+        await db.expenses.createGymExpense(data);
         loadData();
     };
 
@@ -348,11 +427,39 @@ const Inventory = () => {
                         <button className="btn btn-primary" onClick={() => { setEditingItem(null); setIsProductModalOpen(true); }}>
                             <Plus size={18} className="mr-2" /> Novo Produto
                         </button>
-                    ) : (
+                    ) : activeTab === 'equipment' ? (
                         <button className="btn btn-primary" onClick={() => { setEditingItem(null); setIsEquipmentModalOpen(true); }}>
                             <Dumbbell size={18} className="mr-2" /> Registar Máquina
                         </button>
-                    )}
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="inventory-stats grid grid-cols-4 gap-4 mb-6">
+                <div className="stat-card">
+                    <span className="text-muted text-xs uppercase font-bold">Património Total</span>
+                    <h3 className="text-xl font-bold">{equipment.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0).toLocaleString()} MT</h3>
+                    <small className="text-primary">{equipment.length} Máquinas</small>
+                </div>
+                <div className="stat-card">
+                    <span className="text-muted text-xs uppercase font-bold">Valor Inventário</span>
+                    <h3 className="text-xl font-bold">{products.reduce((acc, curr) => acc + (curr.price * curr.stock), 0).toLocaleString()} MT</h3>
+                    <small className="text-success">Preço de Venda</small>
+                </div>
+                <div className="stat-card">
+                    <span className="text-muted text-xs uppercase font-bold">Rupturas Stock</span>
+                    <h3 className="text-xl font-bold text-red-400">{products.filter(p => p.stock <= 0).length}</h3>
+                    <small className="text-red-500/70">Produtos esgotados</small>
+                </div>
+                <div className="stat-card">
+                    <span className="text-muted text-xs uppercase font-bold">Gastos Mensais</span>
+                    <h3 className="text-xl font-bold">
+                        {expenses
+                            .filter(ex => new Date(ex.date).getMonth() === new Date().getMonth())
+                            .reduce((acc, curr) => acc + (Number(curr.total_cost || curr.amount) || 0), 0)
+                            .toLocaleString()} MT
+                    </h3>
+                    <small className="text-muted">Total despesas este mês</small>
                 </div>
             </div>
 
@@ -379,20 +486,25 @@ const Inventory = () => {
             ) : activeTab === 'products' ? (
                 <div className="table-container">
                     <table className="data-table">
-                        <thead><tr><th>Produto</th><th>Categoria</th><th>Local</th><th>Stock</th><th>Preço</th><th>Ações</th></tr></thead>
+                        <thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Local</th><th>Stock</th><th>Preço</th><th>Ações</th></tr></thead>
                         <tbody>
                             {filteredProducts.map(p => (
                                 <tr key={p.id}>
+                                    <td>
+                                        <div className="product-img-mini">
+                                            {p.photo_url ? <img src={p.photo_url} alt={p.name} /> : <Package size={20} />}
+                                        </div>
+                                    </td>
                                     <td><strong>{p.name}</strong></td>
                                     <td>{p.category}</td>
-                                    <td><span className="text-muted"><MapPin size={12} className="inline mr-1" /> {locations.find(l => l.id === p.location_id)?.name || '---'}</span></td>
+                                    <td><span className="text-muted"><MapPin size={12} className="inline mr-1" /> {locations.find(l => String(l.id) === String(p.location_id))?.name || '---'}</span></td>
                                     <td><span className={`stock-badge ${p.stock < 5 ? 'low' : 'ok'}`}>{p.stock} un</span></td>
                                     <td>{p.price.toLocaleString()} MT</td>
                                     <td>
                                         <div className="actions-cell">
-                                            <button className="icon-btn" onClick={() => { setRestockingItem(p); setIsRestockModalOpen(true); }}><ArrowUpCircle size={16} /></button>
-                                            <button className="icon-btn" onClick={() => { setEditingItem(p); setIsProductModalOpen(true); }}><Edit2 size={16} /></button>
-                                            <button className="icon-btn danger" onClick={() => deleteProduct(p.id)}><Trash2 size={16} /></button>
+                                            <button className="icon-btn" title="Repor Stock" onClick={() => { setRestockingItem(p); setIsRestockModalOpen(true); }}><ArrowUpCircle size={16} /></button>
+                                            <button className="icon-btn" title="Editar" onClick={() => { setEditingItem(p); setIsProductModalOpen(true); }}><Edit2 size={16} /></button>
+                                            <button className="icon-btn danger" title="Eliminar" onClick={() => deleteProduct(p.id)}><Trash2 size={16} /></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -403,12 +515,17 @@ const Inventory = () => {
             ) : activeTab === 'equipment' ? (
                 <div className="table-container">
                     <table className="data-table">
-                        <thead><tr><th>Equipamento</th><th>Localização</th><th>Estado</th><th>Última Manut.</th><th>Ações</th></tr></thead>
+                        <thead><tr><th>Foto</th><th>Equipamento</th><th>Localização</th><th>Estado</th><th>Última Manut.</th><th>Ações</th></tr></thead>
                         <tbody>
                             {filteredEquipment.map(e => (
                                 <tr key={e.id}>
+                                    <td>
+                                        <div className="product-img-mini">
+                                            {e.photo_url ? <img src={e.photo_url} alt={e.name} /> : <Dumbbell size={20} />}
+                                        </div>
+                                    </td>
                                     <td><strong>{e.name}</strong><br /><small className="text-muted">{e.description}</small></td>
-                                    <td><MapPin size={14} className="inline mr-1" /> {locations.find(l => l.id === e.location_id)?.name || '---'}</td>
+                                    <td><MapPin size={14} className="inline mr-1" /> {locations.find(l => String(l.id) === String(e.location_id))?.name || '---'}</td>
                                     <td><span className={`status-badge ${e.status}`}>{e.status}</span></td>
                                     <td>{e.purchase_date}</td>
                                     <td>
@@ -425,14 +542,26 @@ const Inventory = () => {
             ) : (
                 <div className="table-container">
                     <table className="data-table">
-                        <thead><tr><th>Data</th><th>Item</th><th>Qtd</th><th>Custo Total</th></tr></thead>
+                        <thead><tr><th>Data</th><th>Despesa / Item</th><th>Tipo</th><th>Total</th><th>Estado</th></tr></thead>
                         <tbody>
                             {expenses.map(ex => (
                                 <tr key={ex.id}>
                                     <td>{new Date(ex.date).toLocaleDateString()}</td>
-                                    <td>{ex.product_name}</td>
-                                    <td>+{ex.quantity}</td>
-                                    <td className="text-red-400">-{ex.total_cost.toLocaleString()} MT</td>
+                                    <td>
+                                        <strong>{ex.product_name || ex.title || ex.description}</strong>
+                                        {ex.responsible && <span className="block text-xs text-muted">Resp: {ex.responsible}</span>}
+                                    </td>
+                                    <td>
+                                        <span className={`badge-sm ${ex.type === 'product' ? 'blue' : 'orange'}`}>
+                                            {ex.type === 'product' ? 'Stock' : (ex.category || 'Geral')}
+                                        </span>
+                                    </td>
+                                    <td className="text-red-400 font-bold">-{(ex.total_cost || ex.amount || 0).toLocaleString()} MT</td>
+                                    <td>
+                                        <span className={`status-dot ${ex.status === 'pendente' ? 'warning' : 'success'}`}>
+                                            {ex.status === 'pendente' ? 'Pendente' : 'Pago'}
+                                        </span>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -444,6 +573,7 @@ const Inventory = () => {
             <EquipmentModal isOpen={isEquipmentModalOpen} onClose={() => setIsEquipmentModalOpen(false)} onSave={handleSaveEquipment} initialData={editingItem} locations={locations} />
             <LocationModal isOpen={isLocationModalOpen} onClose={() => setIsLocationModalOpen(false)} onSave={handleSaveLocation} />
             <RestockModal isOpen={isRestockModalOpen} onClose={() => setIsRestockModalOpen(false)} product={restockingItem} onSave={handleRestock} />
+            <GeneralExpenseModal isOpen={isGeneralExpenseModalOpen} onClose={() => setIsGeneralExpenseModalOpen(false)} onSave={handleSaveGeneralExpense} />
 
             {/* Hidden container for PDF export */}
             <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
@@ -485,6 +615,22 @@ const Inventory = () => {
                 .icon-btn.danger:hover { color: #ef4444; }
                 .inline { display: inline; }
                 .loader-container { display: flex; justify-content: center; padding: 4rem; font-size: 2rem; color: var(--primary); }
+                .grid-cols-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+                .stat-card { background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; }
+                .badge-sm { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
+                .badge-sm.blue { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+                .badge-sm.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+                .status-dot { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+                .status-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+                .status-dot.success::before { background: var(--success); }
+                .status-dot.warning::before { background: #facc15; }
+                .block { display: block; }
+                .product-img-mini {
+                    width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+                    background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
+                    border: 1px solid var(--border);
+                }
+                .product-img-mini img { width: 100%; height: 100%; object-fit: cover; }
             `}</style>
         </div>
     );

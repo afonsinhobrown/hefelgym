@@ -24,6 +24,7 @@ import Classes from './pages/Classes';
 import Reports from './pages/Reports';
 import Instructors from './pages/Instructors';
 import MonthlyPayments from './pages/MonthlyPayments';
+import Finance from './pages/Finance';
 
 /* Admin */
 import AdminGyms from './pages/AdminGyms';
@@ -34,12 +35,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/landing" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
+        {/* Root Route shows Landing Page */}
+        <Route path="/" element={<Landing />} />
 
-        {/* Redirecionar raiz para Dashboard se autenticado (futuro) ou Landing */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Public Routes */}
+        <Route path="/landing" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<Login />} />
 
         {/* Rotas da Aplicação (Com Sidebar/Layout) */}
         <Route element={<Layout />}>
@@ -57,6 +58,7 @@ function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/whatsapp" element={<WhatsAppConnect />} />
           <Route path="/payments" element={<MonthlyPayments />} />
+          <Route path="/finance" element={<Finance />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/trainings" element={<Trainings />} />

@@ -202,9 +202,30 @@ export const db = {
             if (USE_LOCAL_SERVER) return api.get(`expenses/gym?gymId=${gymId || ''}`);
             return [];
         },
-        create: async (data) => {
+        getProducts: async () => {
+            if (USE_LOCAL_SERVER) return api.get('expenses/products');
+            return [];
+        },
+        deleteProductExpense: async (id) => {
+            if (USE_LOCAL_SERVER) return api.delete(`expenses/products/${id}`);
+            return;
+        },
+        createProductExpense: async (data) => {
+            if (USE_LOCAL_SERVER) return api.post('expenses/products', data);
+            throw new Error("Funcionalidade apenas local.");
+        },
+        getGym: async () => {
+            const gymId = getAuthGymId();
+            if (USE_LOCAL_SERVER) return api.get(`expenses/gym?gymId=${gymId || ''}`);
+            return [];
+        },
+        createGymExpense: async (data) => {
             const gymId = getAuthGymId();
             if (USE_LOCAL_SERVER) return api.post('expenses/gym', { ...data, gym_id: gymId });
+            return;
+        },
+        deleteGymExpense: async (id) => {
+            if (USE_LOCAL_SERVER) return api.delete(`expenses/gym/${id}`);
             return;
         }
     },
@@ -349,25 +370,6 @@ export const db = {
         }
     },
 
-    expenses: {
-        getProducts: async () => {
-            if (USE_LOCAL_SERVER) return api.get('expenses/products');
-            return []; // Cloud fallback
-        },
-        createProductExpense: async (data) => {
-            if (USE_LOCAL_SERVER) return api.post('expenses/products', data);
-            throw new Error("Funcionalidade apenas local.");
-        },
-        getGym: async () => {
-            if (USE_LOCAL_SERVER) return api.get('expenses/gym');
-            return [];
-        },
-        createGymExpense: async (data) => {
-            if (USE_LOCAL_SERVER) return api.post('expenses/gym', data);
-            throw new Error("Funcionalidade apenas local.");
-        }
-    },
-
     // Novo: Presenças (Mock inicial para evitar crash)
     attendance: {
         getAll: async () => {
@@ -395,27 +397,63 @@ export const db = {
             throw new Error("Controlo hardware indisponível remotamente.");
         }
     },
+    locations: {
+        getAll: async () => {
+            const gymId = getAuthGymId();
+            if (USE_LOCAL_SERVER) return api.get(`locations?gymId=${gymId || ''}`);
+            const { data } = await supabase.from('locations').select('*').eq('gym_id', gymId || 'hefel_gym_v1');
+            return data;
+        },
+        create: async (data, sync = true) => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const payload = { ...data, id: data.id || `LOC${Date.now()}`, gym_id: gymId };
+            if (USE_LOCAL_SERVER) return api.post('locations', payload);
+            await supabase.from('locations').insert(payload);
+            return payload;
+        }
+    },
+    equipment: {
+        getAll: async () => {
+            const gymId = getAuthGymId();
+            if (USE_LOCAL_SERVER) return api.get(`equipment?gymId=${gymId || ''}`);
+            const { data } = await supabase.from('equipment').select('*').eq('gym_id', gymId || 'hefel_gym_v1');
+            return data;
+        },
+        create: async (data) => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const payload = { ...data, id: data.id || `EQP${Date.now()}`, gym_id: gymId };
+            if (USE_LOCAL_SERVER) return api.post('equipment', payload);
+            await supabase.from('equipment').insert(payload);
+            return payload;
+        },
+        update: async (id, data) => {
+            if (USE_LOCAL_SERVER) return api.put(`equipment/${id}`, data);
+            await supabase.from('equipment').update(data).eq('id', id);
+        },
+        delete: async (id) => {
+            if (USE_LOCAL_SERVER) return api.delete(`equipment/${id}`);
+            await supabase.from('equipment').delete().eq('id', id);
+        }
+    },
     pointOfSale: {
         renewPlanWithMonths: async (clientId, months, status, paymentMethod, planDetails = null) => {
             if (USE_LOCAL_SERVER) {
                 const client = (await api.get('clients') || []).find(c => c.id === clientId);
                 if (!client) throw new Error("Cliente não encontrado.");
 
-                // Usar override ou plano do cliente ou padrão
                 const price = planDetails?.price || client.plan?.price || 1500;
                 const planName = planDetails?.name || client.plan?.name || "Mensalidade";
 
                 const items = [{
-                    productId: 'SUBSCRIPTION', // ID virtual
-                    name: `Renovação ${planName}`, // Nome para o pos
+                    productId: 'SUBSCRIPTION',
+                    name: `Renovação ${planName}`,
                     description: `Renovação ${planName} (${months} Meses)`,
                     quantity: months,
                     price: price,
                     discount: 0
                 }];
-                // Chama processSale que já lida com update de stock (ignora se stock for null) e invoices
                 return db.inventory.processSale(clientId, items, status, { method: paymentMethod });
             }
-        },
+        }
     }
 };

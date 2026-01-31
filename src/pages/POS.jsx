@@ -401,7 +401,13 @@ const POS = () => {
                                 className={`product-card ${product.stock === 0 ? 'disabled' : ''}`}
                                 onClick={() => addToCart(product)}
                             >
-                                <div className="product-icon">{product.name.charAt(0)}</div>
+                                <div className="product-icon">
+                                    {product.photo_url ? (
+                                        <img src={product.photo_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                                    ) : (
+                                        product.name.charAt(0)
+                                    )}
+                                </div>
                                 <div className="product-info">
                                     <h4>{product.name}</h4>
                                     <span className="stock">{product.stock} un</span>

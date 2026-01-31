@@ -19,6 +19,8 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
     const [months, setMonths] = useState(1);
     const [paymentMethod, setPaymentMethod] = useState('Numerário');
     const [loading, setLoading] = useState(false);
+    const [received, setReceived] = useState(0);
+    const [change, setChange] = useState(0);
 
     // State para manipular plano selecionado (caso o defaults do user esteja vazio ou queira mudar)
     const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -47,6 +49,17 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
 
     const planPrice = Number(activePlan.price) || 0;
     const total = planPrice * months;
+
+    const handleReceivedChange = (val) => {
+        setReceived(val);
+        setChange(val > total ? val - total : 0);
+    };
+
+    // Reset received when total changes
+    useEffect(() => {
+        setReceived(total);
+        setChange(0);
+    }, [total]);
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -128,10 +141,48 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
                     </select>
                 </div>
 
+                {paymentMethod === 'Numerário' && (
+                    <div className="cash-section animate-fade-in bg-blue-500/5 p-4 rounded-lg mb-6 border border-blue-500/10">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs text-blue-400 font-bold uppercase mb-1 block">Valor Recebido</label>
+                                <div className="flex items-center bg-gray-900 border border-gray-700 rounded px-3 py-2">
+                                    <input
+                                        type="number"
+                                        className="bg-transparent border-none text-white w-full focus:outline-none font-bold text-lg"
+                                        value={received || ''}
+                                        onChange={e => handleReceivedChange(Number(e.target.value))}
+                                        placeholder="0.00"
+                                    />
+                                    <span className="text-gray-500 ml-2">MT</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-emerald-400 font-bold uppercase mb-1 block">Troco a Entregar</label>
+                                <div className="flex items-center bg-emerald-500/10 border border-emerald-500/20 rounded px-3 py-2">
+                                    <span className="text-emerald-500 font-bold text-lg w-full">
+                                        {change.toLocaleString()}
+                                    </span>
+                                    <span className="text-emerald-500/50 ml-2">MT</span>
+                                </div>
+                            </div>
+                        </div>
+                        {received < total && (
+                            <p className="text-[10px] text-red-400 mt-2 flex items-center gap-1">
+                                <AlertTriangle size={10} /> Valor insuficiente para cobrir o total de {total.toLocaleString()} MT.
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 <div className="flex gap-2 justify-end">
                     <button className="btn btn-secondary" onClick={() => onClose(false)}>Cancelar</button>
-                    <button className="btn btn-primary" onClick={handleConfirm} disabled={loading}>
-                        {loading ? 'Processando...' : `Confirmar ${total.toLocaleString()} MT`}
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleConfirm}
+                        disabled={loading || (paymentMethod === 'Numerário' && received < total)}
+                    >
+                        {loading ? 'Processando...' : `Confirmar Pagamento`}
                     </button>
                 </div>
             </div>
@@ -153,7 +204,7 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
     );
 };
 
-const MonthlyPayments = () => {
+const MonthlyPayments = ({ hideHeader = false }) => {
     const [clients, setClients] = useState([]);
     const [plans, setPlans] = useState([]); // HERE: State for plans
     const [search, setSearch] = useState('');
@@ -259,12 +310,14 @@ const MonthlyPayments = () => {
 
     return (
         <div className="monthly-page animate-fade-in">
-            <div className="page-header">
-                <div className="header-title">
-                    <h2>Gestão de Mensalidades</h2>
-                    <p>Controlo de pagamentos e dívidas</p>
+            {!hideHeader && (
+                <div className="page-header">
+                    <div className="header-title">
+                        <h2>Gestão de Mensalidades</h2>
+                        <p>Controlo de pagamentos e dívidas</p>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Stats Cards */}
             <div className="stats-grid">

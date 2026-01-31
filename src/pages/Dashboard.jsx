@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
   Users,
@@ -98,7 +99,15 @@ const Dashboard = () => {
   const [viewDetails, setViewDetails] = useState({ open: false, title: '', items: [] });
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
+    const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
+    if (session.role === 'operator') {
+      navigate('/pos');
+      return;
+    }
+
     const loadData = async () => {
       try {
         await db.init();

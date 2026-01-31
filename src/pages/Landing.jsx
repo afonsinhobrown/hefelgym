@@ -1,228 +1,452 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, ShieldCheck, Zap, BarChart3, ArrowRight } from 'lucide-react';
+import { Dumbbell, ShieldCheck, Zap, BarChart3, ArrowRight, Play, CheckCircle, Smartphone, Globe, Lock } from 'lucide-react';
 
 const Landing = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="landing-container">
+        <div className="landing-wrapper">
+            {/* Background Background */}
+            <div className="hero-bg-overlay">
+                <img src="/gym-bg.png" alt="Gym Background" className="bg-image" />
+                <div className="bg-gradient-overlay"></div>
+            </div>
+
             {/* Navbar */}
-            <nav className="landing-nav">
-                <div className="nav-logo">
-                    <Dumbbell className="logo-icon" size={32} />
-                    <span className="brand-name">GYMAR</span>
-                </div>
-                <div className="nav-links">
-                    <button className="btn-link">Funcionalidades</button>
-                    <button className="btn-link">Preços</button>
-                    <button className="btn-login" onClick={() => navigate('/login')}>Entrar</button>
-                    <button className="btn-cta" onClick={() => navigate('/register')}>Começar Grátis</button>
+            <nav className="glass-nav">
+                <div className="nav-container">
+                    <div className="brand" onClick={() => navigate('/')}>
+                        <div className="brand-logo">
+                            <Dumbbell size={28} />
+                        </div>
+                        <span className="brand-text">GYMAR <span className="text-primary">PRO</span></span>
+                    </div>
+
+                    <div className="nav-links">
+                        <a href="#features">Funcionalidades</a>
+                        <a href="#about">Sobre</a>
+                        <a href="#contact">Contacto</a>
+                    </div>
+
+                    <div className="nav-actions">
+                        <button className="btn-secondary-sm" onClick={() => navigate('/login')}>Entrar</button>
+                        <button className="btn-primary-sm">Começar Agora</button>
+                    </div>
                 </div>
             </nav>
 
             {/* Hero Section */}
-            <header className="hero-section">
-                <div className="hero-content">
-                    <div className="badge-new">NOVO: Integração WhatsApp Automática</div>
+            <header className="hero">
+                <div className="hero-content animate-slide-up">
+                    <div className="hero-badge">
+                        <span className="badge-new">NEW</span>
+                        <span className="badge-text">Versão 2.4: Gestão de Inventário e Biometria</span>
+                    </div>
                     <h1 className="hero-title">
-                        O Sistema Operativo do <span className="highlight">Seu Ginásio</span>
+                        O SISTEMA <br />
+                        <span className="text-gradient">MOÇAMBICANO</span> <br />
+                        PARA GINÁSIOS.
                     </h1>
-                    <p className="hero-text">
-                        Gestão completa, faturação, controlo de acesso e retenção de alunos num único lugar.
-                        Dê ao seu ginásio a tecnologia das grandes redes.
+                    <p className="hero-description">
+                        Eleve a gestão do seu fitness a um nível profissional.
+                        Controle mensalidades, estoque, acessos por biometria e faturamento
+                        em tempo real com a plataforma mais moderna de Moçambique.
                     </p>
-                    <div className="hero-buttons">
-                        <button className="btn-primary-lg" onClick={() => navigate('/register')}>
-                            Criar Meu Ginásio <ArrowRight size={20} />
+                    <div className="hero-cta">
+                        <button className="btn-primary-lg" onClick={() => navigate('/login')}>
+                            <Play size={20} fill="currentColor" /> ACESSAR PAINEL
                         </button>
-                        <button className="btn-secondary-lg">Ver Demo</button>
+                        <button className="btn-outline-lg">
+                            SOLICITAR DEMO <ArrowRight size={20} />
+                        </button>
                     </div>
-                    <p className="hero-disclaimer">Sem cartão de crédito • 14 dias grátis • Cancelamento fácil</p>
-                </div>
 
-                {/* Abstract Dashboard Preview */}
-                <div className="hero-visual">
-                    <div className="dashboard-card card-1">
-                        <div className="card-header">
-                            <div className="circle red"></div>
-                            <div className="line long"></div>
+                    <div className="hero-stats">
+                        <div className="stat">
+                            <span className="stat-num">50+</span>
+                            <span className="stat-label">Ginásios</span>
                         </div>
-                        <div className="stat-big">986.00 MT</div>
-                        <div className="stat-label">Vendas Hoje</div>
-                    </div>
-                    <div className="dashboard-card card-2">
-                        <div className="icon-box"><Zap size={24} color="#FACC15" /></div>
-                        <div className="stat-med">Ativos</div>
-                        <div className="stat-val">+124</div>
+                        <div className="stat">
+                            <span className="stat-num">12k+</span>
+                            <span className="stat-label">Atletas</span>
+                        </div>
+                        <div className="stat">
+                            <span className="stat-num">100%</span>
+                            <span className="stat-label">Seguro</span>
+                        </div>
                     </div>
                 </div>
             </header>
 
-            {/* Features Grid */}
-            <section className="features-section">
+            {/* Features Glass Section */}
+            <section id="features" className="features">
                 <div className="section-header">
-                    <h2>Tudo o que precisa para crescer</h2>
-                    <p>O GYMAR substitui 5 ferramentas diferentes.</p>
+                    <h2 className="title">Tudo o que o seu negócio precisa</h2>
+                    <p className="subtitle">Uma solução completa 360º desenhada para a realidade moçambicana.</p>
                 </div>
 
                 <div className="features-grid">
-                    <div className="feature-card">
-                        <div className="f-icon"><Zap /></div>
-                        <h3>Rápido e Intuitivo</h3>
-                        <p>Treine a sua equipa em 10 minutos. Interface desenhada para velocidade no balcão.</p>
+                    <div className="glass-card">
+                        <div className="card-icon bg-blue"><Smartphone size={24} /></div>
+                        <h3>Controlo de Acessos</h3>
+                        <p>Integração direta com hardware de biometria e reconhecimento facial. Bloqueio automático de atletas com pagamento pendente.</p>
                     </div>
-                    <div className="feature-card">
-                        <div className="f-icon"><BarChart3 /></div>
+                    <div className="glass-card">
+                        <div className="card-icon bg-purple"><BarChart3 size={24} /></div>
                         <h3>Gestão Financeira</h3>
-                        <p>Controle mensalidades, produtos e caixa. Saiba exatamente quanto lucrou.</p>
+                        <p>Relatórios detalhados de faturamento, fluxo de caixa, despesas e lucros. Gestão automática de mensalidades e renovações.</p>
                     </div>
-                    <div className="feature-card">
-                        <div className="f-icon"><ShieldCheck /></div>
-                        <h3>Controlo de Acesso</h3>
-                        <p>Integração com catracas e biometria. Bloqueio automático de inadimplentes.</p>
+                    <div className="glass-card">
+                        <div className="card-icon bg-green"><Zap size={24} /></div>
+                        <h3>Ponto de Venda (POS)</h3>
+                        <p>Venda produtos de bar, suplementos e merchandise com controle de estoque integrado. Faturação rápida e envio por WhatsApp.</p>
+                    </div>
+                    <div className="glass-card">
+                        <div className="card-icon bg-orange"><Globe size={24} /></div>
+                        <h3>Multi-Localização</h3>
+                        <p>Gerencie vários ginásios em cidades diferentes a partir de um único painel centralizado na nuvem.</p>
+                    </div>
+                    <div className="glass-card">
+                        <div className="card-icon bg-red"><Globe size={24} /></div>
+                        <h3>WhatsApp Automático</h3>
+                        <p>Envio de lembretes de pagamento, comprovativos e mensagens de boas-vindas diretamente para o cliente via WhatsApp.</p>
+                    </div>
+                    <div className="glass-card">
+                        <div className="card-icon bg-cyan"><Lock size={24} /></div>
+                        <h3>Segurança Total</h3>
+                        <p>Backups diários na nuvem e acesso local offline. Os seus dados estão protegidos por criptografia de nível bancário.</p>
                     </div>
                 </div>
             </section>
 
-            {/* Footer */}
-            <footer className="landing-footer">
+            {/* Footer Section */}
+            <footer className="footer">
                 <div className="footer-content">
                     <div className="footer-brand">
-                        <span className="brand-name">GYMAR</span>
-                        <p>Software para Ginásios Modernos.</p>
+                        <div className="brand">
+                            <div className="brand-logo">
+                                <Dumbbell size={24} />
+                            </div>
+                            <span className="brand-text">GYMAR</span>
+                        </div>
+                        <p>Transformando ginásios em negócios inteligentes em Moçambique.</p>
                     </div>
-                    <div className="footer-copy">
-                        &copy; {new Date().getFullYear()} Gymar Systems. Todos os direitos reservados.
+                    <div className="footer-links-grid">
+                        <div className="footer-col">
+                            <h4>Produto</h4>
+                            <a href="#">Funcionalidades</a>
+                            <a href="#">Preços</a>
+                            <a href="#">Hardware</a>
+                        </div>
+                        <div className="footer-col">
+                            <h4>Suporte</h4>
+                            <a href="#">Contacto</a>
+                            <a href="#">Documentação</a>
+                            <a href="#">Updates</a>
+                        </div>
                     </div>
+                </div>
+                <div className="footer-bottom">
+                    <p>&copy; 2024 Gymar Pro Moçambique. Todos os direitos reservados.</p>
                 </div>
             </footer>
 
             <style>{`
-        :root {
-            --gymar-black: #0f172a;
-            --gymar-dark: #1e293b;
-            --gymar-primary: #3b82f6;
-            --gymar-accent: #60a5fa;
-            --gymar-text: #f8fafc;
-            --gymar-text-dim: #94a3b8;
-        }
+                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap');
 
-        .landing-container {
-            background-color: var(--gymar-black);
-            color: var(--gymar-text);
-            min-height: 100vh;
-            font-family: 'Inter', sans-serif;
-            overflow-x: hidden;
-        }
+                :root {
+                    --primary: #3b82f6;
+                    --primary-glow: rgba(59, 130, 246, 0.5);
+                    --bg-dark: #020617;
+                    --text-main: #f8fafc;
+                    --text-muted: #94a3b8;
+                    --glass: rgba(255, 255, 255, 0.03);
+                    --glass-border: rgba(255, 255, 255, 0.08);
+                }
 
-        /* Nav */
-        .landing-nav {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 1.5rem 2rem;
-            max-width: 1200px; margin: 0 auto;
-        }
-        .nav-logo { display: flex; align-items: center; gap: 0.5rem; color: white; font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px; }
-        .logo-icon { color: var(--gymar-primary); }
-        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
-        .btn-link { background: none; border: none; color: var(--gymar-text-dim); cursor: pointer; font-weight: 500; font-size: 1rem; transition: color 0.2s; }
-        .btn-link:hover { color: white; }
-        .btn-login { background: none; border: 1px solid var(--gymar-dark); color: white; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
-        .btn-login:hover { border-color: var(--gymar-primary); }
-        .btn-cta { background: var(--gymar-primary); border: none; color: white; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: transform 0.2s; }
-        .btn-cta:hover { transform: translateY(-1px); background: var(--gymar-accent); }
+                .landing-wrapper {
+                    background-color: var(--bg-dark);
+                    color: var(--text-main);
+                    min-height: 100vh;
+                    font-family: 'Inter', sans-serif;
+                    overflow-x: hidden;
+                    position: relative;
+                }
 
-        /* Hero */
-        .hero-section {
-            padding: 4rem 2rem;
-            max-width: 1200px; margin: 0 auto;
-            display: flex; align-items: center; justify-content: space-between;
-            min-height: 80vh;
-        }
-        .hero-content { max-width: 600px; }
-        .badge-new { 
-            display: inline-block; background: rgba(59, 130, 246, 0.1); color: var(--gymar-accent); 
-            padding: 0.4rem 0.8rem; border-radius: 100px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.2);
-        }
-        .hero-title { font-size: 3.5rem; line-height: 1.1; font-weight: 800; margin-bottom: 1.5rem; letter-spacing: -1px; }
-        .highlight { color: transparent; background: linear-gradient(90deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; background-clip: text; }
-        .hero-text { font-size: 1.25rem; color: var(--gymar-text-dim); line-height: 1.6; margin-bottom: 2.5rem; max-width: 480px; }
-        
-        .hero-buttons { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .btn-primary-lg { 
-            background: var(--gymar-primary); color: white; border: none; padding: 1rem 2rem; border-radius: 12px; 
-            font-size: 1.1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; 
-            transition: all 0.2s; box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
-        }
-        .btn-primary-lg:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.5); }
-        
-        .btn-secondary-lg {
-             background: var(--gymar-dark); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 1rem 2rem; border-radius: 12px; 
-             font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
-        }
-        .btn-secondary-lg:hover { background: rgba(255,255,255,0.1); }
-        
-        .hero-disclaimer { font-size: 0.9rem; color: #64748b; margin-top: 1rem; }
+                /* Background Effects */
+                .hero-bg-overlay {
+                    position: absolute;
+                    inset: 0;
+                    height: 100vh;
+                    z-index: 0;
+                }
+                .bg-image {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    opacity: 0.6;
+                }
+                .bg-gradient-overlay {
+                    position: absolute;
+                    inset: 0;
+                    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 40%),
+                                linear-gradient(to bottom, transparent 20%, var(--bg-dark) 90%),
+                                linear-gradient(to right, var(--bg-dark) 40%, transparent);
+                }
 
-        /* Visual Abstract */
-        .hero-visual { position: relative; width: 450px; height: 400px; display: none; } 
-        @media (min-width: 1024px) { .hero-visual { display: block; } }
+                /* Navbar */
+                .glass-nav {
+                    position: fixed;
+                    top: 0; left: 0; right: 0;
+                    z-index: 100;
+                    padding: 1.5rem 0;
+                    background: rgba(2, 6, 23, 0.3);
+                    backdrop-filter: blur(20px);
+                    border-bottom: 1px solid var(--glass-border);
+                }
+                .nav-container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0 2rem;
+                }
+                .brand {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    cursor: pointer;
+                }
+                .brand-logo {
+                    width: 40px; height: 40px;
+                    background: var(--primary);
+                    border-radius: 12px;
+                    display: flex; align-items: center; justify-content: center;
+                    box-shadow: 0 0 20px var(--primary-glow);
+                }
+                .brand-text {
+                    font-family: 'Outfit', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 800;
+                    letter-spacing: -0.5px;
+                }
+                .text-primary { color: var(--primary); }
 
-        .dashboard-card {
-            background: var(--gymar-dark); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
-            position: absolute; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
-            padding: 1.5rem;
-        }
-        .card-1 { top: 40px; right: 40px; width: 280px; z-index: 2; transform: rotate(-3deg); animation: float 6s ease-in-out infinite; }
-        .card-2 { bottom: 60px; left: 40px; width: 200px; z-index: 1; transform: rotate(3deg); animation: float 6s ease-in-out infinite 1s; }
-        
-        .card-header { display: flex; gap: 10px; margin-bottom: 20px; }
-        .circle { width: 12px; height: 12px; border-radius: 50%; }
-        .red { background: #ef4444; }
-        .line { height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; }
-        .long { flex: 1; }
-        
-        .stat-big { font-size: 2.5rem; font-weight: 800; color: white; letter-spacing: -1px; }
-        .stat-label { color: #64748b; font-size: 0.9rem; margin-top: 5px; }
-        
-        .icon-box { background: rgba(250, 204, 21, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
-        .stat-med { font-size: 1rem; color: #94a3b8; }
-        .stat-val { font-size: 2rem; font-weight: 700; color: white; }
+                .nav-links { display: flex; gap: 2.5rem; }
+                .nav-links a {
+                    text-decoration: none;
+                    color: var(--text-muted);
+                    font-weight: 500;
+                    transition: 0.3s;
+                    font-size: 0.95rem;
+                }
+                .nav-links a:hover { color: white; }
 
-        @keyframes float {
-            0% { transform: translateY(0px) rotate(-3deg); }
-            50% { transform: translateY(-15px) rotate(-3deg); }
-            100% { transform: translateY(0px) rotate(-3deg); }
-        }
+                .nav-actions { display: flex; gap: 1rem; }
+                .btn-secondary-sm {
+                    background: transparent;
+                    border: 1px solid var(--glass-border);
+                    color: white;
+                    padding: 0.6rem 1.2rem;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+                .btn-primary-sm {
+                    background: var(--primary);
+                    border: none;
+                    color: white;
+                    padding: 0.6rem 1.2rem;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    box-shadow: 0 4px 15px var(--primary-glow);
+                }
 
-        /* Features */
-        .features-section { padding: 4rem 2rem; background: #0b1120; }
-        .section-header { text-align: center; max-width: 600px; margin: 0 auto 4rem auto; }
-        .section-header h2 { font-size: 2.5rem; margin-bottom: 1rem; }
-        .section-header p { color: #94a3b8; font-size: 1.2rem; }
-        
-        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto; }
-        .feature-card { background: var(--gymar-dark); padding: 2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); transition: transform 0.2s; }
-        .feature-card:hover { transform: translateY(-5px); border-color: rgba(59, 130, 246, 0.3); }
-        .f-icon { width: 50px; height: 50px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--gymar-accent); margin-bottom: 1.5rem; }
-        .feature-card h3 { font-size: 1.25rem; margin-bottom: 0.75rem; color: white; }
-        .feature-card p { color: #94a3b8; line-height: 1.6; }
+                /* Hero Section */
+                .hero {
+                    position: relative;
+                    z-index: 1;
+                    padding: 180px 2rem 100px;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                .hero-content { max-width: 750px; }
+                
+                .hero-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    background: var(--glass);
+                    border: 1px solid var(--glass-border);
+                    padding: 0.5rem 1rem;
+                    border-radius: 100px;
+                    margin-bottom: 2.5rem;
+                }
+                .badge-new {
+                    background: var(--primary);
+                    font-size: 0.65rem;
+                    font-weight: 800;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                }
+                .badge-text { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
 
-        /* Footer */
-        .landing-footer { border-top: 1px solid #1e293b; padding: 3rem 2rem; margin-top: auto; }
-        .footer-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .footer-brand .brand-name { font-size: 1.5rem; font-weight: 800; color: white; }
-        .footer-brand p { color: #64748b; margin-top: 0.5rem; }
-        .footer-copy { color: #475569; font-size: 0.9rem; }
+                .hero-title {
+                    font-family: 'Outfit', sans-serif;
+                    font-size: 4.5rem;
+                    line-height: 1.1;
+                    font-weight: 800;
+                    margin-bottom: 2rem;
+                }
+                .text-gradient {
+                    background: linear-gradient(90deg, #3b82f6, #60a5fa, #2dd4bf);
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    color: transparent;
+                }
+                .hero-description {
+                    font-size: 1.25rem;
+                    color: var(--text-muted);
+                    line-height: 1.7;
+                    margin-bottom: 3rem;
+                }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero-title { font-size: 2.5rem; }
-            .hero-section { flex-direction: column; text-align: center; padding-top: 2rem; }
-            .hero-buttons { justify-content: center; flex-direction: column; }
-            .footer-content { flex-direction: column; gap: 2rem; text-align: center; }
-        }
-      `}</style>
+                .hero-cta { display: flex; gap: 1.5rem; margin-bottom: 4rem; }
+                .btn-primary-lg {
+                    background: var(--primary);
+                    color: white;
+                    border: none;
+                    padding: 1.2rem 2.5rem;
+                    border-radius: 12px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    display: flex; align-items: center; gap: 0.75rem;
+                    transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    box-shadow: 0 10px 30px var(--primary-glow);
+                }
+                .btn-primary-lg:hover { transform: scale(1.05); }
+                
+                .btn-outline-lg {
+                    background: transparent;
+                    color: white;
+                    border: 1px solid var(--glass-border);
+                    padding: 1.2rem 2.5rem;
+                    border-radius: 12px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    display: flex; align-items: center; gap: 0.75rem;
+                    transition: 0.3s;
+                }
+                .btn-outline-lg:hover { background: var(--glass); border-color: white; }
+
+                .hero-stats { display: flex; gap: 4rem; padding-top: 2rem; border-top: 1px solid var(--glass-border); width: fit-content; }
+                .stat { display: flex; flex-direction: column; gap: 0.25rem; }
+                .stat-num { font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; }
+                .stat-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+                /* Features Section */
+                .features {
+                    padding: 120px 2rem;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    position: relative;
+                    z-index: 1;
+                }
+                .section-header { text-align: center; margin-bottom: 5rem; }
+                .section-header .title { font-family: 'Outfit'; font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
+                .section-header .subtitle { color: var(--text-muted); font-size: 1.25rem; }
+
+                .features-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                    gap: 2rem;
+                }
+                .glass-card {
+                    background: var(--glass);
+                    border: 1px solid var(--glass-border);
+                    backdrop-filter: blur(10px);
+                    padding: 2.5rem;
+                    border-radius: 24px;
+                    transition: 0.4s;
+                }
+                .glass-card:hover {
+                    transform: translateY(-10px);
+                    background: rgba(255, 255, 255, 0.05);
+                    border-color: var(--primary);
+                }
+                .card-icon {
+                    width: 56px; height: 56px;
+                    border-radius: 16px;
+                    display: flex; align-items: center; justify-content: center;
+                    margin-bottom: 2rem;
+                }
+                .card-icon.bg-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+                .card-icon.bg-purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+                .card-icon.bg-green { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+                .card-icon.bg-orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+                .card-icon.bg-red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+                .card-icon.bg-cyan { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+                .glass-card h3 { font-family: 'Outfit'; font-size: 1.5rem; margin-bottom: 1rem; font-weight: 700; }
+                .glass-card p { color: var(--text-muted); line-height: 1.6; font-size: 1rem; }
+
+                /* Footer */
+                .footer {
+                    background: rgba(2, 6, 23, 0.8);
+                    border-top: 1px solid var(--glass-border);
+                    padding: 80px 2rem 40px;
+                    margin-top: 100px;
+                }
+                .footer-content {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    margin-bottom: 60px;
+                }
+                .footer-brand p { color: var(--text-muted); max-width: 300px; margin-top: 1.5rem; }
+                .footer-links-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4rem; }
+                .footer-col h4 { font-family: 'Outfit'; font-size: 1.1rem; margin-bottom: 2rem; font-weight: 700; }
+                .footer-col { display: flex; flex-direction: column; gap: 1rem; }
+                .footer-col a { color: var(--text-muted); text-decoration: none; transition: 0.3s; }
+                .footer-col a:hover { color: white; transform: translateX(5px); }
+                
+                .footer-bottom {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    border-top: 1px solid var(--glass-border);
+                    padding-top: 40px;
+                    text-align: center;
+                    color: #475569;
+                    font-size: 0.9rem;
+                }
+
+                /* Animations */
+                .animate-slide-up {
+                    animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
+                @keyframes slideUp {
+                    from { transform: translateY(40px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+
+                /* Mobile Optimization */
+                @media (max-width: 1024px) {
+                    .hero-title { font-size: 3.5rem; }
+                    .footer-content { grid-template-columns: 1fr; gap: 4rem; }
+                }
+                @media (max-width: 768px) {
+                    .hero-title { font-size: 2.75rem; }
+                    .hero-cta { flex-direction: column; }
+                    .nav-links { display: none; }
+                    .hero-stats { gap: 2rem; }
+                }
+            `}</style>
         </div>
     );
 };

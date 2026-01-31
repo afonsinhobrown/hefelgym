@@ -138,31 +138,80 @@ app.post('/send-file', async (req, res) => {
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS system_config (key TEXT PRIMARY KEY, value TEXT)`);
     // Ensure synced defaults to 0 for local changes to push
-    db.run(`CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, nuit TEXT, status TEXT, photo_url TEXT, plan_id TEXT, created_at TEXT, synced INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT, price REAL, cost_price REAL DEFAULT 0, stock INTEGER, category TEXT, synced INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, client_id TEXT, client_name TEXT, amount REAL, status TEXT, items TEXT, date TEXT, payment_method TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, nuit TEXT, status TEXT, photo_url TEXT, plan_id TEXT, created_at TEXT, last_access TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT, price REAL, cost_price REAL DEFAULT 0, stock INTEGER, category TEXT, location_id TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, client_id TEXT, client_name TEXT, amount REAL, status TEXT, items TEXT, date TEXT, payment_method TEXT, tax_amount REAL DEFAULT 0, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, name TEXT, price REAL, duration INTEGER, features TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS saas_subscriptions (gym_id TEXT PRIMARY KEY, plan_name TEXT, license_fee REAL, status TEXT, last_payment_date TEXT, next_payment_due TEXT, features TEXT, synced INTEGER DEFAULT 1)`);
     db.run(`CREATE TABLE IF NOT EXISTS access_devices (id TEXT PRIMARY KEY, name TEXT, ip TEXT, port INTEGER, username TEXT, password TEXT, type TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS instructors (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, specialties TEXT, contract_type TEXT, commission REAL, balance REAL DEFAULT 0, status TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS instructors (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, specialties TEXT, contract_type TEXT, commission REAL, salary REAL DEFAULT 0, role TEXT DEFAULT 'instructor', balance REAL DEFAULT 0, status TEXT, gym_id TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance (id TEXT PRIMARY KEY, device_ip TEXT, user_id TEXT, user_name TEXT, timestamp TEXT, type TEXT, method TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS product_expenses (id TEXT PRIMARY KEY, product_id TEXT, product_name TEXT, quantity INTEGER, unit_cost REAL, total_cost REAL, date TEXT, supplier TEXT, synced INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS gym_expenses (id TEXT PRIMARY KEY, description TEXT, amount REAL, category TEXT, date TEXT, payment_method TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS gym_expenses (
+        id TEXT PRIMARY KEY, 
+        title TEXT,
+        description TEXT, 
+        amount REAL, 
+        category TEXT, 
+        date TEXT, 
+        payment_method TEXT, 
+        responsible TEXT,
+        status TEXT DEFAULT 'pago',
+        is_fixed INTEGER DEFAULT 0, 
+        gym_id TEXT,
+        synced INTEGER DEFAULT 0
+    )`);
+
+    // Novas tabelas para Inventário de Equipamento e Locais
+    db.run(`CREATE TABLE IF NOT EXISTS locations (id TEXT PRIMARY KEY, name TEXT, gym_id TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS equipment (id TEXT PRIMARY KEY, name TEXT, description TEXT, location_id TEXT, status TEXT DEFAULT 'working', condition TEXT, cost REAL DEFAULT 0, purchase_date TEXT, gym_id TEXT, synced INTEGER DEFAULT 0)`);
 
     // Migrations Safety Check
-    // Add columns if they don't exist
-    // sqlite3 doesn't have IF NOT EXISTS for columns, need to check or swallow error
-    db.run("ALTER TABLE clients ADD COLUMN last_access TEXT", () => { }); // Swallow error if exists
+    db.run("ALTER TABLE clients ADD COLUMN last_access TEXT", () => { });
     db.run("ALTER TABLE clients ADD COLUMN plan_id TEXT", () => { });
-    db.run("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0", () => { });
+    db.run(`CREATE TABLE IF NOT EXISTS salary_history (
+        id TEXT PRIMARY KEY,
+        instructor_id TEXT,
+        old_salary REAL,
+        new_salary REAL,
+        old_role TEXT,
+        new_role TEXT,
+        change_date TEXT,
+        reason TEXT,
+        synced INTEGER DEFAULT 0
+    )`);
+
+    // Pro-active migrations for all tables
+    const migrations = [
+        "ALTER TABLE products ADD COLUMN photo_url TEXT",
+        "ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0",
+        "ALTER TABLE products ADD COLUMN location_id TEXT",
+        "ALTER TABLE equipment ADD COLUMN photo_url TEXT",
+        "ALTER TABLE invoices ADD COLUMN tax_amount REAL DEFAULT 0",
+        "ALTER TABLE invoices ADD COLUMN gym_id TEXT",
+        "ALTER TABLE gym_expenses ADD COLUMN is_fixed INTEGER DEFAULT 0",
+        "ALTER TABLE gym_expenses ADD COLUMN title TEXT",
+        "ALTER TABLE gym_expenses ADD COLUMN responsible TEXT",
+        "ALTER TABLE gym_expenses ADD COLUMN status TEXT DEFAULT 'pago'",
+        "ALTER TABLE gym_expenses ADD COLUMN gym_id TEXT",
+        "ALTER TABLE instructors ADD COLUMN role TEXT DEFAULT 'instructor'",
+        "ALTER TABLE instructors ADD COLUMN base_salary REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN bonus REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN inss_discount REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN irt_discount REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN other_deductions REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN net_salary REAL DEFAULT 0",
+        "ALTER TABLE instructors ADD COLUMN gym_id TEXT"
+    ];
+
+    migrations.forEach(sql => db.run(sql, () => { }));
 
     // === MULTI-TENANCY MIGRATION ===
-    // Adicionar gym_id a todas as tabelas operacionais
-    const tablesToMigrate = ['clients', 'products', 'invoices', 'plans', 'access_devices', 'instructors', 'attendance', 'product_expenses', 'gym_expenses'];
+    const tablesToMigrate = ['clients', 'products', 'invoices', 'plans', 'access_devices', 'instructors', 'attendance', 'product_expenses', 'gym_expenses', 'locations', 'equipment'];
     tablesToMigrate.forEach(table => {
         db.run(`ALTER TABLE ${table} ADD COLUMN gym_id TEXT DEFAULT 'hefel_gym_v1'`, (err) => {
             if (err && !err.message.includes('duplicate column name')) {
-                console.error(`Error adding gym_id to ${table}:`, err.message);
+                // console.error(`Error adding gym_id to ${table}:`, err.message);
             }
         });
     });
@@ -919,41 +968,48 @@ const syncToCloud = async () => {
             });
         });
 
-        /* 
-        // DOWNLOAD (Cloud -> Local) - DESATIVADO PARA EVITAR SOBREPOSIÇÃO DE DADOS LOCAIS
+        // DOWNLOAD (Cloud -> Local) - RESTAURO DE DADOS DA NUVEM
         const { data: cloudInvoices } = await supabase.from('invoices').select('*').eq('gym_id', GYM_ID);
         if (cloudInvoices) {
             db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO invoices (id, client_id, client_name, amount, status, items, date, payment_method, synced) VALUES (?,?,?,?,?,?,?,?,1)`);
+                const stmt = db.prepare(`INSERT OR REPLACE INTO invoices (id, client_id, client_name, amount, status, items, date, payment_method, tax_amount, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,1)`);
                 cloudInvoices.forEach(inv => {
                     const itemsStr = typeof inv.items === 'string' ? inv.items : JSON.stringify(inv.items);
-                    stmt.run(inv.id, inv.client_id, inv.client_name, inv.amount, inv.status, itemsStr, inv.date, inv.payment_method);
+                    stmt.run(inv.id, inv.client_id, inv.client_name, inv.amount, inv.status, itemsStr, inv.date, inv.payment_method, inv.tax_amount || 0, GYM_ID);
                 });
                 stmt.finalize();
             });
         }
- 
-        // DOWNLOAD (Cloud -> Local) - RESTAURO DE EMERGÊNCIA DE NOMES
+
         const { data: cloudClients } = await supabase.from('clients').select('*').eq('gym_id', GYM_ID);
         if (cloudClients && cloudClients.length > 0) {
-            console.log(`⬇️ Restaurando/Sincronizando ${cloudClients.length} clientes da nuvem...`);
+            console.log(`⬇️ Restaurando ${cloudClients.length} clientes da nuvem...`);
             db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO clients (id, name, phone, email, nuit, status, photo_url, created_at, last_access, plan_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,1)`);
+                const stmt = db.prepare(`INSERT OR REPLACE INTO clients (id, name, phone, email, nuit, status, photo_url, created_at, last_access, plan_id, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,?,1)`);
                 cloudClients.forEach(c => {
-                    stmt.run(c.id, c.name, c.phone, c.email, c.nuit, c.status, c.photo_url, c.created_at, c.last_access, c.plan_id);
+                    stmt.run(c.id, c.name, c.phone, c.email, c.nuit, c.status, c.photo_url, c.created_at, c.last_access, c.plan_id, GYM_ID);
                 });
                 stmt.finalize();
             });
         }
- 
-        // License
-        const { data: license } = await supabase.from('saas_subscriptions').select('*').eq('gym_id', GYM_ID).single();
-        if (license) {
-            db.run(`INSERT OR REPLACE INTO saas_subscriptions (gym_id, plan_name, license_fee, status, last_payment_date, next_payment_due, features, synced) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-                [license.gym_id, license.plan_name, license.license_fee, license.status, license.last_payment_date, license.next_payment_due, JSON.stringify(license.features)]
-            );
+
+        // SYNC NEW TABLES (Upload)
+        const tablesToSync = ['locations', 'equipment', 'gym_expenses', 'instructors'];
+        for (const table of tablesToSync) {
+            await new Promise((resolve) => {
+                db.all(`SELECT * FROM ${table} WHERE synced = 0`, async (err, rows) => {
+                    if (rows && rows.length) {
+                        console.log(`⬆️ Enviando ${rows.length} registos de ${table}...`);
+                        for (const row of rows) {
+                            const { synced, ...data } = row;
+                            await supabase.from(table).upsert({ ...data, gym_id: GYM_ID });
+                            db.run(`UPDATE ${table} SET synced = 1 WHERE id = ?`, [row.id]);
+                        }
+                    }
+                    resolve();
+                });
+            });
         }
-        */
 
     } catch (error) {
         console.error("❌ Erro no Sync:", error);
@@ -1052,8 +1108,8 @@ app.get('/api/plans', (req, res) => {
 // Inventory
 app.get('/api/inventory', (req, res) => db.all("SELECT * FROM products", [], (err, rows) => res.json(rows || [])));
 app.post('/api/inventory', (req, res) => {
-    const { id, name, price, cost_price, stock, category } = req.body;
-    db.run(`INSERT INTO products (id, name, price, cost_price, stock, category, synced) VALUES (?,?,?,?,?,?,0)`, [id, name, price, cost_price || 0, stock, category], (err) => {
+    const { id, name, price, cost_price, stock, category, photo_url, location_id } = req.body;
+    db.run(`INSERT INTO products (id, name, price, cost_price, stock, category, photo_url, location_id, synced) VALUES (?,?,?,?,?,?,?,?,0)`, [id, name, price, cost_price || 0, stock, category, photo_url, location_id], (err) => {
         if (err) res.status(500).json(err);
         else {
             res.json({ status: 'ok' });
@@ -1062,8 +1118,8 @@ app.post('/api/inventory', (req, res) => {
     });
 });
 app.put('/api/inventory/:id', (req, res) => {
-    const { name, price, cost_price, stock, category } = req.body;
-    db.run("UPDATE products SET name = ?, price = ?, cost_price = ?, stock = ?, category = ?, synced = 0 WHERE id = ?", [name, price, cost_price || 0, stock, category, req.params.id], (err) => {
+    const { name, price, cost_price, stock, category, photo_url, location_id } = req.body;
+    db.run("UPDATE products SET name = ?, price = ?, cost_price = ?, stock = ?, category = ?, photo_url = ?, location_id = ?, synced = 0 WHERE id = ?", [name, price, cost_price || 0, stock, category, photo_url, location_id, req.params.id], (err) => {
         if (err) res.status(500).json(err);
         else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
     });
@@ -1072,6 +1128,41 @@ app.delete('/api/inventory/:id', (req, res) => {
     db.run("DELETE FROM products WHERE id = ?", [req.params.id], (err) => {
         if (err) res.status(500).json(err);
         else { res.json({ status: 'ok' }); }
+    });
+});
+
+// Equipment
+app.get('/api/equipment', (req, res) => db.all("SELECT * FROM equipment", [], (err, rows) => res.json(rows || [])));
+app.post('/api/equipment', (req, res) => {
+    const { id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url } = req.body;
+    db.run(`INSERT INTO equipment (id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url, synced) VALUES (?,?,?,?,?,?,?,?,?,?,0)`,
+        [id, name, description, location_id, status || 'working', condition || 'Good', cost || 0, purchase_date, gym_id || 'hefel_gym_v1', photo_url], (err) => {
+            if (err) res.status(500).json(err);
+            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
+        });
+});
+app.put('/api/equipment/:id', (req, res) => {
+    const { name, description, location_id, status, condition, cost, purchase_date, photo_url } = req.body;
+    db.run(`UPDATE equipment SET name=?, description=?, location_id=?, status=?, condition=?, cost=?, purchase_date=?, photo_url=?, synced=0 WHERE id=?`,
+        [name, description, location_id, status, condition, cost, purchase_date, photo_url, req.params.id], (err) => {
+            if (err) res.status(500).json(err);
+            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
+        });
+});
+app.delete('/api/equipment/:id', (req, res) => {
+    db.run("DELETE FROM equipment WHERE id = ?", [req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else res.json({ status: 'ok' });
+    });
+});
+
+// Locations
+app.get('/api/locations', (req, res) => db.all("SELECT * FROM locations", [], (err, rows) => res.json(rows || [])));
+app.post('/api/locations', (req, res) => {
+    const { id, name, gym_id } = req.body;
+    db.run(`INSERT INTO locations (id, name, gym_id) VALUES (?,?,?)`, [id, name, gym_id || 'hefel_gym_v1'], (err) => {
+        if (err) res.status(500).json(err);
+        else res.json({ status: 'ok' });
     });
 });
 
@@ -1116,13 +1207,13 @@ app.get('/api/expenses/gym', (req, res) => {
 });
 
 app.post('/api/expenses/gym', (req, res) => {
-    const { description, amount, category, payment_method, gym_id } = req.body;
+    const { title, description, amount, category, payment_method, responsible, status, is_fixed, gym_id } = req.body;
     const date = new Date().toISOString();
     const id = `EXP${Date.now()}`;
     const targetGymId = gym_id || 'hefel_gym_v1';
 
-    db.run(`INSERT INTO gym_expenses (id, description, amount, category, date, payment_method, gym_id, synced) VALUES (?,?,?,?,?,?,?,0)`,
-        [id, description, amount, category, date, payment_method, targetGymId], (err) => {
+    db.run(`INSERT INTO gym_expenses (id, title, description, amount, category, date, payment_method, responsible, status, is_fixed, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,?,0)`,
+        [id, title || description, description, amount, category, date, payment_method, responsible, status || 'pago', is_fixed || 0, targetGymId], (err) => {
             if (err) res.status(500).json(err);
             else res.json({ status: 'ok', id });
         });
@@ -1141,14 +1232,54 @@ app.post('/api/clients', (req, res) => {
             }
         });
 });
-app.put('/api/clients/:id', (req, res) => {
-    const { name, phone, email, nuit, status, photo_url, plan_id, planId } = req.body;
-    const finalPlanId = plan_id || planId;
-    db.run("UPDATE clients SET name = ?, phone = ?, email = ?, nuit = ?, status = ?, photo_url = ?, plan_id = ?, synced = 0 WHERE id = ?",
-        [name, phone, email, nuit, status, photo_url, finalPlanId, req.params.id], (err) => {
-            if (err) res.status(500).json(err);
-            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
-        });
+
+// Instructors / Staff
+app.get('/api/instructors', (req, res) => db.all("SELECT * FROM instructors ORDER BY name ASC", [], (err, rows) => res.json(rows || [])));
+
+app.post('/api/instructors', (req, res) => {
+    const { id, name, phone, email, specialties, contract_type, commission, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary } = req.body;
+    db.run(`INSERT INTO instructors (id, name, phone, email, specialties, contract_type, commission, status, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary, synced) VALUES (?,?,?,?,?,?,?, 'active', ?,?,?,?,?,?,?, 0)`,
+        [id, name, phone, email, specialties, contract_type, commission, role || contract_type, base_salary || 0, bonus || 0, inss_discount || 0, irt_discount || 0, other_deductions || 0, net_salary || 0],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id, status: 'saved' });
+            setTimeout(syncToCloud, 500);
+        }
+    );
+});
+
+app.put('/api/instructors/:id', (req, res) => {
+    const { name, phone, email, specialties, contract_type, commission, status, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary, role, change_reason, balance } = req.body;
+
+    // Fetch current state to check for history
+    db.get("SELECT * FROM instructors WHERE id = ?", [req.params.id], (err, current) => {
+        if (current && (current.base_salary !== base_salary || current.role !== (role || contract_type))) {
+            const historyId = `HIST${Date.now()}`;
+            db.run(`INSERT INTO salary_history (id, instructor_id, old_salary, new_salary, old_role, new_role, change_date, reason) VALUES (?,?,?,?,?,?,?,?)`,
+                [historyId, req.params.id, current.base_salary, base_salary, current.role, role || contract_type, new Date().toISOString(), change_reason || 'Atualização de Perfil']);
+        }
+
+        db.run(`UPDATE instructors SET name=?, phone=?, email=?, specialties=?, contract_type=?, commission=?, status=?, base_salary=?, bonus=?, inss_discount=?, irt_discount=?, other_deductions=?, net_salary=?, role=?, balance = COALESCE(?, balance), synced=0 WHERE id=?`,
+            [name, phone, email, specialties, contract_type, commission, status, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary, role || contract_type, balance, req.params.id],
+            (err) => {
+                if (err) res.status(500).json(err);
+                else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
+            });
+    });
+});
+
+app.get('/api/instructors/:id/history', (req, res) => {
+    db.all("SELECT * FROM salary_history WHERE instructor_id = ? ORDER BY change_date DESC", [req.params.id], (err, rows) => {
+        if (err) res.status(500).json(err);
+        else res.json(rows || []);
+    });
+});
+
+app.delete('/api/instructors/:id', (req, res) => {
+    db.run("DELETE FROM instructors WHERE id = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ status: 'deleted' });
+    });
 });
 app.delete('/api/clients/:id', (req, res) => {
     db.run("DELETE FROM clients WHERE id = ?", [req.params.id], (err) => {
@@ -1465,76 +1596,6 @@ app.post('/api/hardware/info', async (req, res) => {
     }
 });
 
-// --- Instructors Endpoints ---
-app.get('/api/instructors', (req, res) => {
-    db.all("SELECT * FROM instructors", [], (err, rows) => {
-        if (err) return res.status(500).json(err);
-        res.json(rows || []);
-    });
-});
-
-app.post('/api/instructors', (req, res) => {
-    const { id, name, phone, email, specialties, contract_type, commission } = req.body;
-
-    // Auto-Migration for new fields
-    db.run("ALTER TABLE instructors ADD COLUMN contract_type TEXT", () => { });
-    db.run("ALTER TABLE instructors ADD COLUMN commission REAL", () => { });
-
-    db.run(`INSERT INTO instructors (id, name, phone, email, specialties, contract_type, commission, status, synced) VALUES (?,?,?,?,?,?,?, 'active', 0)`,
-        [id, name, phone, email, specialties, contract_type, commission],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id, status: 'saved' });
-            setTimeout(syncToCloud, 500);
-        }
-    );
-});
-
-app.put('/api/instructors/:id', (req, res) => {
-    const { name, phone, email, specialties, contract_type, commission, balance } = req.body;
-    console.log(`📝 UPDATE INSTRUCTOR: ${req.params.id}`, req.body);
-
-    // Auto-Migration Balance & New Fields
-    db.run("ALTER TABLE instructors ADD COLUMN balance REAL DEFAULT 0", () => { });
-    db.run("ALTER TABLE instructors ADD COLUMN contract_type TEXT", () => { });
-    db.run("ALTER TABLE instructors ADD COLUMN commission REAL", () => { });
-
-    // Construir query dinâmica ou update fixo? 
-    // Como balance é opcional no update normal (edit profile), mas obrigatrio no financeiro.
-    // Vou fazer update de tudo. Se balance for undefined, mantem? SQLite "UPDATE ... SET col = COALESCE(?, col)" 
-    // ou simplesmente leio o anterior.
-    // Para simplificar, o frontend deve enviar o objeto completo ou o backend suportar partial updates.
-    // O meu endpoint antigo fazia SET fixo.
-    // Vou mudar para logicamente atualizar o que vier, mas SQL estático é mais seguro/fácil.
-    // Vou assumir que o frontend envia os campos, ou se enviar só balance, o resto vai a null? Perigoso.
-    // Vou fazer 2 querys: Leitura antes de Update ou usar COALESCE.
-
-    // Melhor abordagem rápida: COALESCE para campos opcionais no update
-    db.run(`UPDATE instructors SET 
-            name = COALESCE(?, name), 
-            phone = COALESCE(?, phone), 
-            email = COALESCE(?, email), 
-            specialties = COALESCE(?, specialties), 
-            contract_type = COALESCE(?, contract_type), 
-            commission = COALESCE(?, commission), 
-            balance = COALESCE(?, balance),
-            synced = 0 
-            WHERE id = ?`,
-        [name, phone, email, specialties, contract_type, commission, balance, req.params.id],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ status: 'updated' });
-            setTimeout(syncToCloud, 500);
-        }
-    );
-});
-
-app.delete('/api/instructors/:id', (req, res) => {
-    db.run("DELETE FROM instructors WHERE id = ?", [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ status: 'deleted' });
-    });
-});
 
 // --- Classes Endpoints ---
 app.get('/api/classes', (req, res) => {
@@ -1876,24 +1937,41 @@ app.get('/api/system-users', (req, res) => {
 app.post('/api/system-users', (req, res) => {
     const { name, email, password, role, gymId } = req.body;
 
-    // Validação básica
     if (!name || !email || !password || !role || !gymId) {
         return res.status(400).json({ error: "Todos os campos são obrigatórios" });
     }
 
-    const { v4: uuidv4 } = require('uuid'); // Added for uuidv4()
+    const { v4: uuidv4 } = require('uuid');
     const id = uuidv4();
     const sql = "INSERT INTO system_users (id, name, email, password, role, gym_id) VALUES (?, ?, ?, ?, ?, ?)";
 
     db.run(sql, [id, name, email, password, role, gymId], function (err) {
         if (err) {
-            // Verifica duplicidade
             if (err.message.includes('UNIQUE constraint failed')) {
                 return res.status(409).json({ error: "Este email já está em uso." });
             }
             return res.status(500).json({ error: err.message });
         }
         res.json({ success: true, id, message: "Utilizador criado com sucesso!" });
+    });
+});
+
+// 3. Mudar senha (Ação do Próprio Utilizador)
+app.put('/api/system-users/change-password', (req, res) => {
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Todos os campos são obrigatórios." });
+    }
+
+    db.get("SELECT id FROM system_users WHERE email = ? AND password = ?", [email, currentPassword], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(401).json({ error: "Palavra-passe atual incorreta." });
+
+        db.run("UPDATE system_users SET password = ?, synced = 0 WHERE id = ?", [newPassword, user.id], (updErr) => {
+            if (updErr) return res.status(500).json({ error: updErr.message });
+            res.json({ success: true, message: "Palavra-passe atualizada com sucesso!" });
+        });
     });
 });
 

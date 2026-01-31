@@ -17,7 +17,9 @@ import {
   DollarSign,
   Briefcase,
   Smartphone,
-  Key
+  Key,
+  Coins,
+  User as UserIcon
 } from 'lucide-react';
 import '../../styles/design_system.css';
 import { supabase } from '../../services/supabase';
@@ -66,7 +68,7 @@ const Sidebar = ({ onNavItemClick }) => {
   };
 
   const saasNavItems = [
-    { icon: LayoutDashboard, label: 'Visão Geral', path: '/' },
+    { icon: LayoutDashboard, label: 'Visão Geral', path: '/dashboard' },
     { icon: Building, label: 'Ginásios (Clientes)', path: '/admin/gyms' },
     { icon: Users, label: 'Utilizadores GYMAR', path: '/admin/users' },
     { icon: DollarSign, label: 'Financeiro SaaS', path: '/admin/finance' },
@@ -74,14 +76,16 @@ const Sidebar = ({ onNavItemClick }) => {
   ];
 
   const gymNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Smartphone, label: 'WhatsApp Bot', path: '/whatsapp' },
     { icon: ScanLine, label: 'Acessos', path: '/attendance' },
     { icon: Key, label: 'Hardware / Catracas', path: '/hardware' },
     { icon: ShoppingCart, label: 'Ponto de Venda', path: '/pos' },
-    { icon: Receipt, label: 'Faturação', path: '/invoices' },
     { icon: DollarSign, label: 'Mensalidades', path: '/payments' },
-    { icon: Briefcase, label: 'Profissionais', path: '/instructors' },
+    { icon: Receipt, label: 'Faturação', path: '/invoices' },
+    { icon: Coins, label: 'Financeiro', path: '/finance' },
+    { icon: UserIcon, label: 'Acessos / Logins', path: '/admin/users' },
+    { icon: Briefcase, label: 'Equipa & Salários', path: '/instructors' },
     { icon: Users, label: 'Utentes', path: '/users' },
     { icon: CreditCard, label: 'Planos', path: '/plans' },
     { icon: CalendarDays, label: 'Aulas', path: '/classes' },
@@ -93,9 +97,6 @@ const Sidebar = ({ onNavItemClick }) => {
   const operatorNavItems = [
     { icon: ShoppingCart, label: 'Ponto de Venda', path: '/pos' },
     { icon: DollarSign, label: 'Mensalidades', path: '/payments' },
-    { icon: Receipt, label: 'Faturação', path: '/invoices' },
-    { icon: Users, label: 'Utentes', path: '/users' },
-    { icon: Package, label: 'Inventário', path: '/inventory' },
   ];
 
   let itemsToShow = [];

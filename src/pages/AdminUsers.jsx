@@ -72,6 +72,18 @@ const AdminUsers = () => {
                 </button>
             </div>
 
+            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg mb-6 flex items-start gap-3">
+                <Briefcase size={20} className="text-blue-400 mt-1" />
+                <div>
+                    <h3 className="text-white font-bold text-sm">Procura a Folha de Salários?</h3>
+                    <p className="text-gray-400 text-xs">
+                        Aqui gere apenas os acessos ao sistema (logins).
+                        Para gerir contratos, salários e processar folhas de pagamento, vá para o menu
+                        <a href="/instructors" className="text-blue-400 font-bold ml-1 hover:underline">Equipa & Salários</a>.
+                    </p>
+                </div>
+            </div>
+
             {loading ? <p className="text-gray-400">A carregar...</p> : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {users.map((u) => (
