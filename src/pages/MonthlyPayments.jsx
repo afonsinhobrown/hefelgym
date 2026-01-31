@@ -39,12 +39,13 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
         }
     }, [isOpen, user, plans]);
 
-    if (!isOpen || !user) return null;
-
     // Achar o objeto do plano selecionado
     // Se 'custom', usa o do user. Se ID, usa da lista.
-    let activePlan = plans.find(p => p.id === selectedPlanId);
-    if (!activePlan && user.plan) activePlan = user.plan;
+    let activePlan = null;
+    if (user) {
+        activePlan = plans.find(p => p.id === selectedPlanId);
+        if (!activePlan && user.plan) activePlan = user.plan;
+    }
     if (!activePlan) activePlan = { name: 'Sem Plano', price: 0 };
 
     const planPrice = Number(activePlan.price) || 0;
@@ -60,6 +61,8 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
         setReceived(total);
         setChange(0);
     }, [total]);
+
+    if (!isOpen || !user) return null;
 
     const handleConfirm = async () => {
         setLoading(true);
