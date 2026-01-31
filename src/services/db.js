@@ -438,7 +438,7 @@ export const db = {
         }
     },
     pointOfSale: {
-        renewPlanWithMonths: async (clientId, months, status, paymentMethod, planDetails = null) => {
+        renewPlanWithMonths: async (clientId, qty, status, paymentMethod, planDetails = null) => {
             if (USE_LOCAL_SERVER) {
                 const client = (await api.get('clients') || []).find(c => c.id === clientId);
                 if (!client) throw new Error("Cliente não encontrado.");
@@ -446,14 +446,20 @@ export const db = {
                 const price = planDetails?.price || client.plan?.price || 1500;
                 const planName = planDetails?.name || client.plan?.name || "Mensalidade";
 
+                // Smart label for unit
+                let unitLabel = "Meses";
+                if (planName.toLowerCase().includes('diário') || planName.toLowerCase().includes('diario')) unitLabel = "Dias";
+                if (planName.toLowerCase().includes('semanal')) unitLabel = "Semanas";
+
                 const items = [{
                     productId: 'SUBSCRIPTION',
                     name: `Renovação ${planName}`,
-                    description: `Renovação ${planName} (${months} Meses)`,
-                    quantity: months,
+                    description: `Renovação ${planName} (${qty} ${unitLabel})`,
+                    quantity: qty,
                     price: price,
                     discount: 0
                 }];
+                // Note: Validity update is handled by Front-End calculation on MonthlyPayments page based on this description/qty
                 return db.inventory.processSale(clientId, items, status, { method: paymentMethod });
             }
         }

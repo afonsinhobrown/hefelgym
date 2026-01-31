@@ -40,8 +40,8 @@ const Landing = () => {
             <header className="hero">
                 <div className="hero-content animate-slide-up">
                     <div className="hero-badge">
-                        <span className="badge-new">NEW</span>
-                        <span className="badge-text">Versão 2.4: Gestão de Inventário e Biometria</span>
+                        <span className="badge-new">EDITION</span>
+                        <span className="badge-text">Software GYMAR • Versão HEFEL GYM</span>
                     </div>
                     <h1 className="hero-title">
                         O SISTEMA <br />
@@ -131,6 +131,11 @@ const Landing = () => {
                             <span className="brand-text">GYMAR</span>
                         </div>
                         <p>Transformando ginásios em negócios inteligentes em Moçambique.</p>
+                        <div className="mt-8 pt-6 border-t border-white/10">
+                            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1">Desenvolvido por</p>
+                            <h4 className="font-bold text-white text-lg">ENCUBADORADESOLUÇÕES</h4>
+                            <p className="text-xs text-primary">#ENCUBADORADESOLUCOES</p>
+                        </div>
                     </div>
                     <div className="footer-links-grid">
                         <div className="footer-col">
@@ -148,7 +153,7 @@ const Landing = () => {
                     </div>
                 </div>
                 <div className="footer-bottom">
-                    <p>&copy; 2024 Gymar Pro Moçambique. Todos os direitos reservados.</p>
+                    <p>&copy; 2026 Gymar Pro Moçambique. Versão HEFEL GYM.</p>
                 </div>
             </footer>
 

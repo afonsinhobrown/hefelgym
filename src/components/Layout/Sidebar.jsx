@@ -143,6 +143,11 @@ const Sidebar = ({ onNavItemClick }) => {
           <div className="icon-box"><LogOut size={20} /></div>
           <span>Sair</span>
         </button>
+        <div className="mt-4 text-[10px] text-gray-600 text-center">
+          <p>Desenvolvido por</p>
+          <p className="font-bold text-gray-500">Encubadora de Soluções</p>
+          <p className="text-[9px] opacity-50">#ENCUBADORADESOLUCOES</p>
+        </div>
       </div>
 
       <style>{`

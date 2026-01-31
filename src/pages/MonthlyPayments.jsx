@@ -125,12 +125,32 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
                 </div>
 
                 <div className="form-group mb-4">
-                    <label className="text-sm text-muted mb-1 block">Duração a Pagar</label>
+                    <label className="text-sm text-muted mb-1 block">
+                        Duração ({activePlan.name.toLowerCase().includes('diário') ? 'Dias' : activePlan.name.toLowerCase().includes('semanal') ? 'Semanas' : 'Meses'})
+                    </label>
                     <select className="input w-full" value={months} onChange={e => setMonths(Number(e.target.value))}>
-                        <option value={1}>1 Mês ({total.toLocaleString()} MT)</option>
-                        <option value={3}>3 Meses ({(planPrice * 3).toLocaleString()} MT)</option>
-                        <option value={6}>6 Meses ({(planPrice * 6).toLocaleString()} MT)</option>
-                        <option value={12}>1 Ano ({(planPrice * 12).toLocaleString()} MT)</option>
+                        {activePlan.name.toLowerCase().includes('diário') || activePlan.name.toLowerCase().includes('diario') ? (
+                            <>
+                                <option value={1}>1 Dia ({planPrice.toLocaleString()} MT)</option>
+                                <option value={2}>2 Dias ({(planPrice * 2).toLocaleString()} MT)</option>
+                                <option value={3}>3 Dias ({(planPrice * 3).toLocaleString()} MT)</option>
+                                <option value={5}>5 Dias ({(planPrice * 5).toLocaleString()} MT)</option>
+                                <option value={7}>7 Dias ({(planPrice * 7).toLocaleString()} MT)</option>
+                            </>
+                        ) : activePlan.name.toLowerCase().includes('semanal') ? (
+                            <>
+                                <option value={1}>1 Semana ({planPrice.toLocaleString()} MT)</option>
+                                <option value={2}>2 Semanas ({(planPrice * 2).toLocaleString()} MT)</option>
+                                <option value={4}>4 Semanas ({(planPrice * 4).toLocaleString()} MT)</option>
+                            </>
+                        ) : (
+                            <>
+                                <option value={1}>1 Mês ({planPrice.toLocaleString()} MT)</option>
+                                <option value={3}>3 Meses ({(planPrice * 3).toLocaleString()} MT)</option>
+                                <option value={6}>6 Meses ({(planPrice * 6).toLocaleString()} MT)</option>
+                                <option value={12}>1 Ano ({(planPrice * 12).toLocaleString()} MT)</option>
+                            </>
+                        )}
                     </select>
                 </div>
 
@@ -242,8 +262,14 @@ const MonthlyPayments = ({ hideHeader = false }) => {
                 let totalDaysPaid = 0;
                 paidInvoices.forEach(inv => {
                     inv.items?.forEach(item => {
-                        if (item.description && (item.description.toLowerCase().includes('renovação') || item.description.toLowerCase().includes('plano') || item.description.toLowerCase().includes('mensalidade'))) {
-                            totalDaysPaid += (Number(item.quantity) || 1) * 30;
+                        const desc = item.description ? item.description.toLowerCase() : '';
+                        if (desc && (desc.includes('renovação') || desc.includes('plano') || desc.includes('mensalidade'))) {
+                            let multiplier = 30; // Default Monthly
+                            if (desc.includes('diário') || desc.includes('diario')) multiplier = 1;
+                            else if (desc.includes('semanal') || desc.includes('semana')) multiplier = 7;
+                            else if (desc.includes('anual')) multiplier = 365;
+
+                            totalDaysPaid += (Number(item.quantity) || 1) * multiplier;
                         }
                     });
                 });
