@@ -17,7 +17,9 @@ const getBaseAPI = () => {
         return import.meta.env.VITE_PROD_API_URL || 'https://hefelgym.onrender.com/api';
     }
 
-    return import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3001/api';
+    // Dynamic Localhost for LAN Access (e.g. 192.168.x.x)
+    const hostname = window.location.hostname;
+    return import.meta.env.VITE_LOCAL_API_URL || `http://${hostname}:3001/api`;
 };
 
 export const API_LOCAL = getBaseAPI();

@@ -44,6 +44,15 @@ db.serialize(() => {
         db.run(`DELETE FROM sqlite_sequence WHERE name = '${table}'`, () => { });
     });
 
+    // Resetar Saldos Financeiros (Sem apagar as pessoas)
+    db.run("UPDATE instructors SET balance = 0, absences_discount = 0", (err) => {
+        if (!err) console.log("✅ Saldos de Instrutores ZERADOS.");
+    });
+
+    db.run("UPDATE clients SET status = 'active'", (err) => {
+        // Opcional: Resetar status ou saldo se existir
+    });
+
     // Manter utentes e entradas intactos
     db.run("COMMIT", (err) => {
         if (err) {

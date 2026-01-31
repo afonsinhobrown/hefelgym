@@ -90,6 +90,7 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
         other_deductions: 0,
         net_salary: 0,
         rate: 0,
+        absences_discount: 0,
         change_reason: ''
     });
 
@@ -107,6 +108,7 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
                 inss_discount: instructor.inss_discount || 0,
                 irt_discount: instructor.irt_discount || 0,
                 other_deductions: instructor.other_deductions || 0,
+                absences_discount: instructor.absences_discount || 0,
                 net_salary: instructor.net_salary || 0,
                 change_reason: ''
             });
@@ -147,7 +149,7 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
         let irps = 0;
         if (base > 20000) irps = (base - 20000) * 0.10;
         if (base > 50000) irps = 3000 + (base - 50000) * 0.20;
-        const net = (base + bonus) - inss - irps - (Number(formData.other_deductions) || 0);
+        const net = (base + bonus) - inss - irps - (Number(formData.other_deductions) || 0) - (Number(formData.absences_discount) || 0);
 
         setFormData(prev => ({
             ...prev,
@@ -245,6 +247,12 @@ const InstructorModal = ({ isOpen, onClose, onSave, instructor }) => {
                                         <label className="text-xs text-red-400">Outros Desc.</label>
                                         <input type="number" className="input w-full text-red-300"
                                             value={formData.other_deductions} onChange={e => setFormData({ ...formData, other_deductions: parseFloat(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="text-xs text-red-400">Desc. Faltas</label>
+                                        <input type="number" className="input w-full text-red-300"
+                                            value={formData.absences_discount} onChange={e => setFormData({ ...formData, absences_discount: parseFloat(e.target.value) || 0 })}
                                         />
                                     </div>
                                 </div>
@@ -476,7 +484,9 @@ const Instructors = () => {
             bonus: data.bonus,
             inss_discount: data.inss_discount,
             irt_discount: data.irt_discount,
+            irt_discount: data.irt_discount,
             other_deductions: data.other_deductions,
+            absences_discount: data.absences_discount,
             net_salary: data.net_salary
         };
 
@@ -488,7 +498,10 @@ const Instructors = () => {
                 bonus: data.bonus,
                 inss_discount: data.inss_discount,
                 irt_discount: data.irt_discount,
+                inss_discount: data.inss_discount,
+                irt_discount: data.irt_discount,
                 other_deductions: data.other_deductions,
+                absences_discount: data.absences_discount,
                 net_salary: data.net_salary,
                 role: data.type,
                 change_reason: data.change_reason
@@ -682,6 +695,7 @@ const Instructors = () => {
                                         <th className="p-4 border-b border-white/5">Cargo</th>
                                         <th className="p-4 border-b border-white/5 text-right">Salário Base</th>
                                         <th className="p-4 border-b border-white/5 text-right">Bónus</th>
+                                        <th className="p-4 border-b border-white/5 text-right text-red-400">Faltas</th>
                                         <th className="p-4 border-b border-white/5 text-right text-red-400">INSS (3%)</th>
                                         <th className="p-4 border-b border-white/5 text-right text-red-400">IRT</th>
                                         <th className="p-4 border-b border-white/5 text-right text-red-400">Outros</th>
@@ -696,9 +710,9 @@ const Instructors = () => {
                                             <td className="p-4 text-gray-400">{getInstructorLabel(inst.type)}</td>
                                             <td className="p-4 text-right font-mono text-gray-300">{inst.base_salary?.toLocaleString()}</td>
                                             <td className="p-4 text-right font-mono text-emerald-400">{inst.bonus?.toLocaleString()}</td>
-                                            <td className="p-4 text-right font-mono text-red-400">{inst.inss_discount?.toLocaleString()}</td>
-                                            <td className="p-4 text-right font-mono text-red-400">{inst.irt_discount?.toLocaleString()}</td>
-                                            <td className="p-4 text-right font-mono text-red-400">{inst.other_deductions?.toLocaleString()}</td>
+                                            <td className="p-4 text-right font-mono text-red-400" title="Faltas">-{inst.absences_discount?.toLocaleString()}</td>
+                                            <td className="p-4 text-right font-mono text-red-400">-{inst.inss_discount?.toLocaleString()}</td>
+                                            <td className="p-4 text-right font-mono text-red-400">-{inst.irt_discount?.toLocaleString()}</td>
                                             <td className="p-4 text-right font-mono font-bold text-lg bg-white/5 text-white shadow-inner">{inst.net_salary?.toLocaleString()} MT</td>
                                             <td className="p-4 text-center">
                                                 <button

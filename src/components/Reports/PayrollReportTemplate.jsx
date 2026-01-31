@@ -62,6 +62,7 @@ const PayrollReportTemplate = ({ employees, month, year, summary }) => {
                             <th style={{ padding: '10px' }}>Cargo</th>
                             <th style={{ padding: '10px', textAlign: 'right' }}>Salário Base</th>
                             <th style={{ padding: '10px', textAlign: 'right' }}>Bónus</th>
+                            <th style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>Faltas</th>
                             <th style={{ padding: '10px', textAlign: 'right' }}>INSS (3%)</th>
                             <th style={{ padding: '10px', textAlign: 'right' }}>IRT</th>
                             <th style={{ padding: '10px', textAlign: 'right' }}>Outros</th>
@@ -75,6 +76,7 @@ const PayrollReportTemplate = ({ employees, month, year, summary }) => {
                                 <td style={{ padding: '8px 10px', color: '#64748b' }}>{emp.role_label}</td>
                                 <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace' }}>{(emp.base_salary || 0).toLocaleString()}</td>
                                 <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#166534' }}>{(emp.bonus || 0).toLocaleString()}</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>{(emp.absences_discount || 0).toLocaleString()}</td>
                                 <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>{(emp.inss_discount || 0).toLocaleString()}</td>
                                 <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>{(emp.irt_discount || 0).toLocaleString()}</td>
                                 <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>{(emp.other_deductions || 0).toLocaleString()}</td>
@@ -89,6 +91,7 @@ const PayrollReportTemplate = ({ employees, month, year, summary }) => {
                             <td colSpan={2} style={{ padding: '10px', textAlign: 'right', textTransform: 'uppercase', fontSize: '9px' }}>Totais Gerais</td>
                             <td style={{ padding: '10px', textAlign: 'right' }}>{employees.reduce((a, b) => a + (b.base_salary || 0), 0).toLocaleString()}</td>
                             <td style={{ padding: '10px', textAlign: 'right' }}>{employees.reduce((a, b) => a + (b.bonus || 0), 0).toLocaleString()}</td>
+                            <td style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>{employees.reduce((a, b) => a + (b.absences_discount || 0), 0).toLocaleString()}</td>
                             <td style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>{employees.reduce((a, b) => a + (b.inss_discount || 0), 0).toLocaleString()}</td>
                             <td style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>{employees.reduce((a, b) => a + (b.irt_discount || 0), 0).toLocaleString()}</td>
                             <td style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>{employees.reduce((a, b) => a + (b.other_deductions || 0), 0).toLocaleString()}</td>
