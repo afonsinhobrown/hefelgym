@@ -156,10 +156,10 @@ const AdminUsers = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-slate-800/80 text-gray-400 text-xs uppercase sticky top-0 backdrop-blur-md z-10">
                         <tr>
-                            <th className="p-4 font-bold tracking-wider">Nome / Utilizador</th>
-                            <th className="p-4 font-bold tracking-wider">Email (Login)</th>
-                            <th className="p-4 font-bold tracking-wider text-center">Cargo</th>
-                            <th className="p-4 font-bold tracking-wider text-center">Ações</th>
+                            <th className="p-4 font-bold tracking-wider w-[40%]">Nome / Utilizador</th>
+                            <th className="p-4 font-bold tracking-wider w-[30%]">Email (Login)</th>
+                            <th className="p-4 font-bold tracking-wider text-center w-[15%]">Cargo</th>
+                            <th className="p-4 font-bold tracking-wider text-center w-[15%]">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/50">
@@ -169,33 +169,37 @@ const AdminUsers = () => {
                             <tr><td colSpan="4" className="p-8 text-center text-gray-500 italic">Nenhum utilizador encontrado.</td></tr>
                         ) : filteredUsers.map((u) => (
                             <tr key={u.id} className="hover:bg-slate-800/30 transition-colors group">
-                                <td className="p-4">
+                                <td className="p-4 align-middle">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-lg ${u.role === 'gym_admin' ? 'bg-gradient-to-br from-red-500/20 to-pink-600/20 text-red-200 border-red-500/30' : 'bg-gradient-to-br from-slate-700 to-slate-800 text-slate-300 border-slate-600'}`}>
+                                        <div className={`w-10 h-10 min-w-[2.5rem] rounded-full flex items-center justify-center border shadow-lg ${u.role === 'gym_admin' ? 'bg-gradient-to-br from-red-500/20 to-pink-600/20 text-red-200 border-red-500/30' : 'bg-gradient-to-br from-slate-700 to-slate-800 text-slate-300 border-slate-600'}`}>
                                             <span className="font-bold text-sm">{u.name?.charAt(0).toUpperCase()}</span>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-white text-sm">{u.name}</p>
-                                            <p className="text-xs text-slate-500">ID: {u.id?.toString().substring(0, 8)}...</p>
+                                        <div className="overflow-hidden">
+                                            <p className="font-bold text-white text-sm truncate">{u.name}</p>
+                                            <p className="text-xs text-slate-500 truncate" title={u.id}>ID: ...{u.id?.toString().slice(-6)}</p>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="p-4 text-sm text-gray-300 font-mono">{u.email}</td>
-                                <td className="p-4 text-center">{getRoleBadge(u.role)}</td>
-                                <td className="p-4">
-                                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <td className="p-4 align-middle text-sm text-gray-300 font-mono truncate max-w-[200px]" title={u.email}>{u.email}</td>
+                                <td className="p-4 align-middle text-center">{getRoleBadge(u.role)}</td>
+                                <td className="p-4 align-middle text-center">
+                                    <div className="flex items-center justify-center gap-2 opacity-100 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => openEdit(u)}
                                             className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                                            title="Editar"
+                                            title="Editar Acesso"
                                         >
                                             <Edit size={16} />
                                         </button>
                                         {u.role !== 'gym_admin' && (
                                             <button
-                                                onClick={() => handleDelete(u.id)}
+                                                onClick={() => {
+                                                    if (window.confirm(`ATENÇÃO:\nIsto removerá o acesso ao sistema para "${u.name}".\n\nO funcionário NÃO será removido da folha de salários, apenas perderá o login.\n\nContinuar?`)) {
+                                                        handleDelete(u.id);
+                                                    }
+                                                }}
                                                 className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                                                title="Eliminar"
+                                                title="Revogar Acesso"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
