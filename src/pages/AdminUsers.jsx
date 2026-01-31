@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, Briefcase, Plus, X, Lock, Trash2, Edit, CheckCircle, Ban, Search } from 'lucide-react';
-import { API_LOCAL } from '../services/db';
+import { API_LOCAL, db } from '../services/db';
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
+    const [staffList, setStaffList] = useState([]); // Store Staff for dropdown
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [formData, setFormData] = useState({ id: null, name: '', email: '', password: '', role: 'operator' });
+    const [formData, setFormData] = useState({ id: null, name: '', email: '', password: '', role: 'operator', staffId: null });
     const [session, setSession] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -14,7 +15,20 @@ const AdminUsers = () => {
         const sess = JSON.parse(localStorage.getItem('gymar_session') || '{}');
         setSession(sess);
         fetchUsers(sess.gymId);
+        loadStaff(); // Load staff for the dropdown
     }, []);
+
+    const loadStaff = async () => {
+        try {
+            await db.init();
+            const instructors = await db.instructors.getAll();
+            if (Array.isArray(instructors)) {
+                setStaffList(instructors);
+            }
+        } catch (e) {
+            console.error("Error loading staff:", e);
+        }
+    };
 
     const fetchUsers = async (gymId) => {
         try {
@@ -210,10 +224,35 @@ const AdminUsers = () => {
                         <form onSubmit={handleSave} className="space-y-4 relative z-10">
                             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
                                 <div>
-                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Nome Completo</label>
-                                    <input className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                                        required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="Ex: João Silva" />
+                                    <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Membro do Staff</label>
+                                    <select
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none cursor-pointer"
+                                        value={formData.staffId || ''}
+                                        onChange={(e) => {
+                                            const selectedId = e.target.value;
+                                            const staff = staffList.find(s => s.id === selectedId);
+                                            if (staff) {
+                                                setFormData({
+                                                    ...formData,
+                                                    staffId: staff.id,
+                                                    name: staff.name,
+                                                    // Auto-generate email based on name if not present
+                                                    email: staff.email || `${staff.name.toLowerCase().split(' ')[0]}@hefelgym.com`
+                                                });
+                                            } else {
+                                                // Caso seja 'manual' ou vazio
+                                                setFormData({ ...formData, staffId: '', name: '' });
+                                            }
+                                        }}
+                                        disabled={!!formData.id} // Disable if editing existing user (optional, but safer)
+                                    >
+                                        <option value="">Selecione um funcionário...</option>
+                                        {staffList.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name} ({s.type === 'manager' ? 'Gerência' : 'Staff'})</option>
+                                        ))}
+                                    </select>
+                                    {/* Fallback Display Name if editing or manually set */}
+                                    {formData.name && <p className="text-xs text-blue-400 mt-1 ml-1">Selecionado: {formData.name}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-slate-400 text-xs font-bold uppercase mb-1 ml-1">Email (Login)</label>
