@@ -220,6 +220,7 @@ const PaymentModal = ({ isOpen, onClose, user, plans = [] }) => {
                     background: var(--bg-card); width: 100%;
                     border-radius: var(--radius); padding: 1.5rem;
                     border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+                    max-height: 90vh; overflow-y: auto;
                 }
                 .bg-gray-800 { background: rgba(255,255,255,0.05); }
             `}</style>
