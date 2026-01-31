@@ -393,11 +393,18 @@ const ClientModal = ({ isOpen, onClose, onSave, plans, initialData }) => {
         planId: ''
     });
 
+    // Payment State (Only for New Users)
+    const [payNow, setPayNow] = useState(false);
+    const [regFee, setRegFee] = useState(500); // Default Fee example
+    const [paymentMethod, setPaymentMethod] = useState('Numerário');
+
     useEffect(() => {
         if (initialData) {
             setFormData(initialData);
+            setPayNow(false); // Don't show payment for edits by default
         } else {
             setFormData({ name: '', nuit: '', phone: '', email: '', address: '', planId: '' });
+            setPayNow(true); // Default to pay now for new users
         }
     }, [initialData, isOpen]);
 
@@ -405,13 +412,17 @@ const ClientModal = ({ isOpen, onClose, onSave, plans, initialData }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(formData);
+        onSave({ ...formData, payNow, regFee, paymentMethod });
         onClose();
     };
 
+    const selectedPlan = plans.find(p => p.id === formData.planId);
+    const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+    const totalFirstPayment = payNow ? (planPrice + Number(regFee)) : 0;
+
     return (
         <div className="modal-overlay">
-            <div className="modal-content animate-fade-in">
+            <div className="modal-content animate-fade-in" style={{ maxWidth: '500px' }}>
                 <div className="modal-header">
                     <h3>{initialData ? 'Editar Utente' : 'Novo Utente'}</h3>
                     <button onClick={onClose} className="close-btn"><X size={20} /></button>
@@ -420,68 +431,91 @@ const ClientModal = ({ isOpen, onClose, onSave, plans, initialData }) => {
                     <div className="form-grid">
                         <div className="form-group">
                             <label>Nome Completo*</label>
-                            <input
-                                required
-                                type="text"
-                                className="input"
-                                value={formData.name || ''}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            />
+                            <input required type="text" className="input" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label>NUIT</label>
-                            <input
-                                type="text"
-                                className="input"
-                                value={formData.nuit || ''}
-                                onChange={e => setFormData({ ...formData, nuit: e.target.value })}
-                            />
+                            <input type="text" className="input" value={formData.nuit || ''} onChange={e => setFormData({ ...formData, nuit: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label>Telefone*</label>
-                            <input
-                                required
-                                type="text"
-                                className="input"
-                                value={formData.phone || ''}
-                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                            />
+                            <input required type="text" className="input" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label>Email</label>
-                            <input
-                                type="email"
-                                className="input"
-                                value={formData.email || ''}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            />
+                            <input type="email" className="input" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                         </div>
                         <div className="form-group full">
                             <label>Endereço</label>
-                            <input
-                                type="text"
-                                className="input"
-                                value={formData.address || ''}
-                                onChange={e => setFormData({ ...formData, address: e.target.value })}
-                            />
+                            <input type="text" className="input" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
                         </div>
                         <div className="form-group full">
                             <label>Plano de Adesão*</label>
-                            <select
-                                required
-                                className="input"
-                                value={formData.planId || ''}
-                                onChange={e => setFormData({ ...formData, planId: e.target.value })}
-                            >
+                            <select required className="input" value={formData.planId || ''} onChange={e => setFormData({ ...formData, planId: e.target.value })}>
                                 <option value="">Selecione um plano...</option>
-                                {plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price} MT</option>)}
+                                {plans.map(p => <option key={p.id} value={p.id}>{p.name} - {Number(p.price).toLocaleString()} MT</option>)}
                             </select>
                         </div>
                     </div>
-                    <div className="modal-footer">
+
+                    {/* Section de Pagamento Inicial (Apenas Novo) */}
+                    {!initialData && (
+                        <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div className="flex items-center gap-3 mb-3">
+                                <input
+                                    type="checkbox"
+                                    id="payNow"
+                                    className="w-5 h-5 rounded border-slate-600 bg-slate-700"
+                                    checked={payNow}
+                                    onChange={e => setPayNow(e.target.checked)}
+                                />
+                                <label htmlFor="payNow" className="font-bold text-slate-200 cursor-pointer select-none">
+                                    Processar Inscrição e 1ª Mensalidade?
+                                </label>
+                            </div>
+
+                            {payNow && (
+                                <div className="space-y-3 animate-fade-in pl-1">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label className="text-xs text-slate-400">Taxa de Inscrição (MT)</label>
+                                            <input
+                                                type="number"
+                                                className="input text-right"
+                                                value={regFee}
+                                                onChange={e => setRegFee(Math.max(0, Number(e.target.value)))}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="text-xs text-slate-400">Método Pagamento</label>
+                                            <select
+                                                className="input"
+                                                value={paymentMethod}
+                                                onChange={e => setPaymentMethod(e.target.value)}
+                                            >
+                                                <option value="Numerário">Numerário / Cash</option>
+                                                <option value="M-Pesa">M-Pesa</option>
+                                                <option value="POS">POS / Cartão</option>
+                                                <option value="Transferência">Transferência</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-900 p-3 rounded flex justify-between items-center border border-slate-600">
+                                        <span className="text-sm font-bold text-slate-400">TOTAL A PAGAR:</span>
+                                        <span className="text-lg font-black text-emerald-400">{totalFirstPayment.toLocaleString()} MT</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 text-center">
+                                        (Inclui {planPrice.toLocaleString()} MT do plano + Taxa de Inscrição)
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="modal-footer mt-6">
                         <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
                         <button type="submit" className="btn btn-primary">
-                            <Save size={18} /> {initialData ? 'Atualizar' : 'Salvar'}
+                            <Save size={18} /> {initialData ? 'Atualizar' : (payNow ? 'Salvar e Pagar' : 'Salvar Apenas')}
                         </button>
                     </div>
                 </form>
@@ -601,14 +635,60 @@ const Users = () => {
 
     const handleSave = async (data) => {
         try {
+            let clientId = editingUser?.id;
+
             if (editingUser) {
-                await db.clients.update(editingUser.id, data);
+                // Update
+                const updateData = { ...data };
+                // Garantir que não enviamos campos extra se a API for estrita (SQLite ignora, mas por segurança)
+                delete updateData.payNow;
+                delete updateData.regFee;
+                delete updateData.paymentMethod;
+
+                await db.clients.update(editingUser.id, updateData);
             } else {
-                await db.clients.create(data);
+                // Create
+                const clientData = { ...data };
+                delete clientData.payNow;
+                delete clientData.regFee;
+                delete clientData.paymentMethod;
+
+                const newClient = await db.clients.create(clientData);
+                clientId = newClient.id; // API retorna o objeto criado
             }
+
+            // --- Lógica de Pagamento Inicial (Apenas na Criação) ---
+            if (!editingUser && data.payNow && clientId) {
+                const selectedPlan = plans.find(p => p.id === data.planId);
+                const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+                const fee = Number(data.regFee) || 0;
+
+                const items = [];
+                // Item 1: Inscrição
+                if (fee > 0) items.push({ productId: 'FEE', name: 'Taxa de Inscrição (Jóia)', price: fee, qty: 1, type: 'fee' });
+                // Item 2: Mensalidade
+                if (planPrice > 0) items.push({ productId: 'SUBSCRIPTION', name: `Mensalidade 1º Mês (${selectedPlan.name})`, price: planPrice, qty: 1, type: 'subscription' });
+
+                if (items.length > 0) {
+                    // Usamos o endpoint de Stock/Venda pois ele gera Fatura.
+                    await db.inventory.processSale(
+                        clientId,
+                        items,
+                        'pago',
+                        { method: data.paymentMethod }
+                    );
+                }
+            }
+            // -------------------------------------------------------
+
             setIsModalOpen(false);
             setEditingUser(null);
             await loadData();
+
+            if (!editingUser && data.payNow) alert("Utente criado e pagamento registado!");
+            else if (!editingUser) alert("Utente criado com sucesso!");
+            else alert("Dados atualizados!");
+
         } catch (e) { alert("Erro ao salvar: " + e.message); }
     };
 
