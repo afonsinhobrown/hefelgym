@@ -113,103 +113,103 @@ const AdminUsers = () => {
 
     return (
         <div className="users-page animate-fade-in p-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Equipa do Ginásio</h2>
-                    <p className="text-gray-400">Gerir acessos de Gerentes e Operadores do Sistema.</p>
+                    <h2 className="text-2xl font-bold text-white mb-1">Equipa do Ginásio</h2>
+                    <p className="text-gray-400 text-sm">Gerir acessos de Gerentes e Operadores.</p>
                 </div>
-                <div className="flex gap-3">
-                    <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search size={18} className="text-gray-500 group-focus-within:text-blue-400 transition-colors" />
-                        </div>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:flex-none">
+                        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
                         <input
                             type="text"
                             placeholder="Buscar utilizador..."
-                            className="bg-slate-900/50 border border-slate-700 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 pl-10 p-2.5 outline-none transition-all"
+                            className="w-full md:w-64 bg-slate-900 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button
                         onClick={() => { setFormData({ id: null, name: '', email: '', password: '', role: 'operator' }); setShowModal(true); }}
-                        className="btn btn-primary flex items-center gap-2"
+                        className="btn btn-primary whitespace-nowrap flex items-center gap-2"
                     >
                         <Plus size={18} /> Novo Utilizador
                     </button>
                 </div>
             </div>
 
-            <div className="bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl mb-8 flex items-start gap-3 backdrop-blur-sm">
+            <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
                 <Briefcase size={20} className="text-blue-400 mt-1 flex-shrink-0" />
                 <div>
                     <h3 className="text-blue-400 font-bold text-sm mb-1">Aviso Importante</h3>
-                    <p className="text-gray-400 text-xs leading-relaxed">
-                        Esta secção é, apenas para gerir quem pode <strong className="text-white">aceder ao sistema</strong> (Fazer Login).<br />
-                        Se procura pela <strong>Folha de Salários</strong> ou gestão de contratos de staff, aceda ao menu
-                        <a href="/instructors" className="text-blue-400 font-bold ml-1 hover:underline hover:text-blue-300 transition-colors">Equipa & Salários</a>.
+                    <p className="text-gray-300 text-xs">
+                        Esta secção serve apenas para gerir <strong>Logins de Acesso</strong>.<br />
+                        Para Salários e Contratos, vá para <a href="/instructors" className="text-blue-400 font-bold hover:underline">Equipa & Salários</a>.
                     </p>
                 </div>
             </div>
 
-            <div className="card table-card overflow-hidden border border-slate-700/50 shadow-2xl rounded-xl custom-scrollbar">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-800/80 text-gray-400 text-xs uppercase sticky top-0 backdrop-blur-md z-10">
-                        <tr>
-                            <th className="p-4 font-bold tracking-wider w-[40%]">Nome / Utilizador</th>
-                            <th className="p-4 font-bold tracking-wider w-[30%]">Email (Login)</th>
-                            <th className="p-4 font-bold tracking-wider text-center w-[15%]">Cargo</th>
-                            <th className="p-4 font-bold tracking-wider text-center w-[15%]">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/50">
-                        {loading ? (
-                            <tr><td colSpan="4" className="p-8 text-center text-gray-500">A carregar equipa...</td></tr>
-                        ) : filteredUsers.length === 0 ? (
-                            <tr><td colSpan="4" className="p-8 text-center text-gray-500 italic">Nenhum utilizador encontrado.</td></tr>
-                        ) : filteredUsers.map((u) => (
-                            <tr key={u.id} className="hover:bg-slate-800/30 transition-colors group">
-                                <td className="p-4 align-middle">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 min-w-[2.5rem] rounded-full flex items-center justify-center border shadow-lg ${u.role === 'gym_admin' ? 'bg-gradient-to-br from-red-500/20 to-pink-600/20 text-red-200 border-red-500/30' : 'bg-gradient-to-br from-slate-700 to-slate-800 text-slate-300 border-slate-600'}`}>
-                                            <span className="font-bold text-sm">{u.name?.charAt(0).toUpperCase()}</span>
-                                        </div>
-                                        <div className="overflow-hidden">
-                                            <p className="font-bold text-white text-sm truncate">{u.name}</p>
-                                            <p className="text-xs text-slate-500 truncate" title={u.id}>ID: ...{u.id?.toString().slice(-6)}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4 align-middle text-sm text-gray-300 font-mono truncate max-w-[200px]" title={u.email}>{u.email}</td>
-                                <td className="p-4 align-middle text-center">{getRoleBadge(u.role)}</td>
-                                <td className="p-4 align-middle text-center">
-                                    <div className="flex items-center justify-center gap-2 opacity-100 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => openEdit(u)}
-                                            className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                                            title="Editar Acesso"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        {u.role !== 'gym_admin' && (
-                                            <button
-                                                onClick={() => {
-                                                    if (window.confirm(`ATENÇÃO:\nIsto removerá o acesso ao sistema para "${u.name}".\n\nO funcionário NÃO será removido da folha de salários, apenas perderá o login.\n\nContinuar?`)) {
-                                                        handleDelete(u.id);
-                                                    }
-                                                }}
-                                                className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                                                title="Revogar Acesso"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
+            <div className="card w-full overflow-hidden border border-slate-700 rounded-lg bg-slate-800">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-900 text-gray-400 text-xs uppercase font-bold border-b border-slate-700">
+                            <tr>
+                                <th className="p-4 w-1/3">Nome / Staff</th>
+                                <th className="p-4 w-1/3">Email (Login)</th>
+                                <th className="p-4 w-1/6 text-center">Cargo</th>
+                                <th className="p-4 w-1/6 text-center">Ações</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {loading ? (
+                                <tr><td colSpan="4" className="p-8 text-center text-gray-500">A carregar...</td></tr>
+                            ) : filteredUsers.length === 0 ? (
+                                <tr><td colSpan="4" className="p-8 text-center text-gray-500 italic">Nenhum utilizador encontrado.</td></tr>
+                            ) : filteredUsers.map((u) => (
+                                <tr key={u.id} className="hover:bg-slate-700/50 transition-colors">
+                                    <td className="p-4 align-middle">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 border border-slate-600 font-bold flex-shrink-0">
+                                                {u.name?.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-white text-sm truncate">{u.name}</p>
+                                                {u.staffId && <span className="text-[10px] bg-blue-900 text-blue-300 px-1 rounded border border-blue-800">STAFF VINCULADO</span>}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 align-middle text-sm text-gray-300 font-mono">
+                                        {u.email}
+                                    </td>
+                                    <td className="p-4 align-middle text-center">
+                                        {getRoleBadge(u.role)}
+                                    </td>
+                                    <td className="p-4 align-middle text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => openEdit(u)}
+                                                className="p-2 rounded hover:bg-slate-600 text-blue-400"
+                                                title="Editar"
+                                            >
+                                                <Edit size={18} />
+                                            </button>
+                                            {u.role !== 'gym_admin' && (
+                                                <button
+                                                    onClick={() => handleDelete(u.id)}
+                                                    className="p-2 rounded hover:bg-slate-600 text-red-400"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* MODAL CRIAR / EDITAR */}
