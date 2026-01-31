@@ -22,6 +22,7 @@ function dataURItoBlob(dataURI) {
 const POS = () => {
     const [products, setProducts] = useState([]);
     const [clients, setClients] = useState([]);
+    const [plans, setPlans] = useState([]);
     const [cart, setCart] = useState([]);
     const [selectedClient, setSelectedClient] = useState('');
     const [search, setSearch] = useState('');
@@ -40,8 +41,10 @@ const POS = () => {
             try {
                 const prods = await db.inventory.getAll();
                 const clis = await db.clients.getAll();
+                const pls = await db.plans.getAll();
                 setProducts(prods || []);
                 setClients(clis || []);
+                setPlans(pls || []);
             } catch (e) { console.error("Erro loading POS async:", e); }
         };
         loadData();
@@ -278,126 +281,102 @@ const POS = () => {
         setSelectedClient('');
     };
 
-    const filteredProducts = products
-        .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => {
-            // Critério 1: Preço > 0 (Vendáveis primeiro)
-            const aHasPrice = a.price > 0;
-            const bHasPrice = b.price > 0;
-            if (aHasPrice && !bHasPrice) return -1;
-            if (!aHasPrice && bHasPrice) return 1;
+    const [activeTab, setActiveTab] = useState('all');
 
-            // Critério 2: Stock > 0 (Disponíveis primeiro)
-            const aHasStock = a.stock > 0;
-            const bHasStock = b.stock > 0;
-            if (aHasStock && !bHasStock) return -1;
-            if (!aHasStock && bHasStock) return 1;
+    const filteredProducts = products.concat(
+        // Adicionar Planos como produtos virtuais se não existirem
+        plans.map(p => ({
+            id: p.id,
+            name: p.name,
+            price: Number(p.price),
+            type: 'plan',
+            stock: 9999, // Unlimited
+            photo_url: null
+        }))
+    ).filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+        if (!matchesSearch) return false;
 
-            // Critério 3: Ordem Alfabética
-            return a.name.localeCompare(b.name);
-        });
+        if (activeTab === 'all') return true;
+        if (activeTab === 'products') return (!p.type || p.type === 'product');
+        if (activeTab === 'memberships') return (p.type === 'plan' || p.name.toLowerCase().includes('plano') || p.name.toLowerCase().includes('mensal') || p.name.toLowerCase().includes('diária'));
+        if (activeTab === 'fees') return (p.type === 'fee' || p.name.toLowerCase().includes('inscrição') || p.name.toLowerCase().includes('cartão') || p.name.toLowerCase().includes('ficha'));
 
-    // Se houver uma venda concluída (lastSale), mostramos APENAS o ecrã de sucesso limpo
-    if (lastSale) {
-        return (
-            <div className="pos-page animate-fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-                {/* INVOICE TEMPLATE OCULTO PARA EFEITOS DE ENVIO */}
-                {generatedInvoice && (
-                    <div className="print-only" id="pos-print-container">
-                        <InvoiceTemplate invoice={generatedInvoice} isThermal={true} />
-                    </div>
-                )}
+        return true;
+    }).sort((a, b) => {
+        // Critério 1: Preço > 0 (Vendáveis primeiro)
+        const aHasPrice = a.price > 0;
+        const bHasPrice = b.price > 0;
+        if (aHasPrice && !bHasPrice) return -1;
+        if (!aHasPrice && bHasPrice) return 1;
 
-                <div className="modal-content success-modal animate-scale-in" style={{ maxWidth: '500px', width: '100%', padding: '3rem' }}>
-                    <div className="success-icon">
-                        <Check size={64} />
-                    </div>
-                    <h2 style={{ fontSize: '2rem', margin: '1rem 0' }}>Venda Concluída!</h2>
+        // Critério 2: Stock > 0 (Disponíveis primeiro)
+        const aHasStock = a.stock > 0;
+        const bHasStock = b.stock > 0;
+        if (aHasStock && !bHasStock) return -1;
+        if (!aHasStock && bHasStock) return 1;
 
-                    <div className="success-amount" style={{ marginBottom: '2rem' }}>
-                        <small style={{ fontSize: '1rem' }}>Total Pago</small>
-                        <span style={{ fontSize: '3rem', color: 'var(--primary)' }}>{(lastSale.total || lastSale.amount || 0).toLocaleString()} MT</span>
-                    </div>
+        // Critério 3: Ordem Alfabética
+        return a.name.localeCompare(b.name);
+    });
 
-                    <p className="success-ref" style={{ fontSize: '1.1rem', marginBottom: '2rem', opacity: 0.8 }}>
-                        Fatura #{lastSale.id} • {lastSale.date}
-                    </p>
+    // ... (rest of logic)
 
-                    <div className="success-actions" style={{ flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
-                            <button className="action-btn print" onClick={() => window.print()} style={{ flex: 1, padding: '1.5rem' }}>
-                                <Printer size={24} />
-                                <span>Imprimir Talão</span>
-                            </button>
-
-                            <button
-                                className="action-btn whatsapp"
-                                onClick={() => !isSending && setPrintingInvoice(lastSale)}
-                                disabled={isSending}
-                                style={{ flex: 1, padding: '1.5rem', opacity: isSending ? 0.7 : 1, cursor: isSending ? 'wait' : 'pointer' }}
-                            >
-                                <Share2 size={24} />
-                                <span>{isSending ? 'Enviando...' : 'WhatsApp PDF'}</span>
-                            </button>
-                        </div>
-
-                        <button
-                            className="finish-btn"
-                            onClick={closeSale}
-                            style={{
-                                marginTop: '1rem',
-                                background: 'transparent',
-                                border: '1px solid var(--border)',
-                                padding: '1rem'
-                            }}
-                        >
-                            Iniciar Nova Venda
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Renderização normal do POS (Apenas quando NÃO há venda concluída)
     return (
         <div className="pos-page animate-fade-in">
-            {/* INVOICE TEMPLATE OCULTO PARA IMPRESSÃO TÉRMICA NATIVA */}
-            {/* Mantemos apenas se necessário para backup, mas a lógica mudou para o ecrã de sucesso acima */}
-            {/* Na verdade, não precisamos dele aqui porque já o renderizamos no 'if (lastSale)' */}
-            {generatedInvoice && (
-                <div className="print-only" id="pos-print-container">
-                    <InvoiceTemplate
-                        invoice={generatedInvoice}
-                        onClose={() => { }}
-                        isThermal={true}
-                    />
-                </div>
-            )}
-
-            {/* O resto da interface do POS (escondida na impressão) */}
+            {/* ... */}
             <div className="pos-container no-print">
 
                 {/* Left Side: Product Grid */}
                 <div className="pos-products">
-                    <div className="pos-header">
-                        <h2>Ponto de Venda</h2>
-                        <div className="search-box">
-                            <Search size={20} className="search-icon" />
-                            <input
-                                type="text"
-                                placeholder="Buscar produto..."
-                                className="input search-input"
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                            />
+                    <div className="pos-header flex-col items-start gap-2">
+                        <div className="flex justify-between w-full items-center">
+                            <h2>Ponto de Venda</h2>
+                            <div className="search-box">
+                                <Search size={20} className="search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar produto..."
+                                    className="input search-input"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex gap-2 w-full mt-2 overflow-x-auto pb-1">
+                            <button
+                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'all' ? 'bg-primary text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                onClick={() => setActiveTab('all')}
+                            >
+                                Tudo
+                            </button>
+                            <button
+                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                onClick={() => setActiveTab('products')}
+                            >
+                                Produtos
+                            </button>
+                            <button
+                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'memberships' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                onClick={() => setActiveTab('memberships')}
+                            >
+                                Mensalidades/Planos
+                            </button>
+                            <button
+                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'fees' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                onClick={() => setActiveTab('fees')}
+                            >
+                                Inscrições/Taxas
+                            </button>
                         </div>
                     </div>
 
                     <div className="products-grid">
                         {filteredProducts.map(product => (
                             <div
-                                key={product.id}
+                                key={product.id || Math.random()}
                                 className={`product-card ${product.stock === 0 ? 'disabled' : ''}`}
                                 onClick={() => addToCart(product)}
                             >
@@ -405,12 +384,15 @@ const POS = () => {
                                     {product.photo_url ? (
                                         <img src={product.photo_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
                                     ) : (
-                                        product.name.charAt(0)
+                                        // Dynamic Icon based on type
+                                        product.type === 'plan' || product.name.toLowerCase().includes('plano') ? 'P' :
+                                            product.type === 'fee' || product.name.toLowerCase().includes('inscrição') ? 'T' :
+                                                product.name.charAt(0)
                                     )}
                                 </div>
                                 <div className="product-info">
                                     <h4>{product.name}</h4>
-                                    <span className="stock">{product.stock} un</span>
+                                    <span className="stock">{product.stock > 1000 ? '9999+' : product.stock} un</span>
                                     <span className="price">{product.price} MT</span>
                                 </div>
                             </div>

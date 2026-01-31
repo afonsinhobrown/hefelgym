@@ -17,9 +17,11 @@ const Landing = () => {
             <nav className="glass-nav">
                 <div className="nav-container">
                     <div className="brand" onClick={() => navigate('/')}>
-                        <div className="brand-logo">
-                            <Dumbbell size={28} />
-                        </div>
+                        <img
+                            src="/encubadora_logo.jpeg"
+                            alt="Logo"
+                            style={{ height: '40px', width: 'auto', borderRadius: '8px' }}
+                        />
                         <span className="brand-text">GYMAR <span className="text-primary">PRO</span></span>
                     </div>
 

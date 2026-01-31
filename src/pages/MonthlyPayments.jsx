@@ -234,6 +234,13 @@ const MonthlyPayments = ({ hideHeader = false }) => {
     const [filter, setFilter] = useState('all'); // all, late, pending, paid
     const [selectedUser, setSelectedUser] = useState(null);
     const [generatedInvoice, setGeneratedInvoice] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Reset pagination when search/filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, filter]);
 
     const loadData = async () => {
         try {
@@ -404,7 +411,7 @@ const MonthlyPayments = ({ hideHeader = false }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredClients.map(client => (
+                        {filteredClients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(client => (
                             <tr key={client.id}>
                                 <td className="font-bold">{client.name}</td>
                                 <td>{client.plan?.name || '-'}</td>
@@ -415,7 +422,6 @@ const MonthlyPayments = ({ hideHeader = false }) => {
                                     <button
                                         className="btn btn-sm btn-primary"
                                         onClick={() => setSelectedUser(client)}
-                                    // Disabled removed here!
                                     >
                                         <DollarSign size={16} /> Receber
                                     </button>
@@ -424,6 +430,29 @@ const MonthlyPayments = ({ hideHeader = false }) => {
                         ))}
                     </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                <div className="pagination-controls flex justify-between items-center p-4 border-t border-gray-700">
+                    <span className="text-sm text-gray-400">
+                        Mostrando {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredClients.length)} de {filteredClients.length}
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            className="btn btn-sm btn-secondary"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        >
+                            Anterior
+                        </button>
+                        <button
+                            className="btn btn-sm btn-secondary"
+                            disabled={currentPage * itemsPerPage >= filteredClients.length}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <PaymentModal
