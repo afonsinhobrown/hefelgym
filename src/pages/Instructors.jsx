@@ -188,8 +188,10 @@ const Instructors = () => {
             inssDiscount = Math.round(bruto * (data.inss_percent / 100));
         }
 
-        // IRPS (Automático)
-        const irtDiscount = calculateIRPS(bruto, data.dependents || 0);
+        // IRPS (Automático sobre Rendimento Coletável = Bruto - INSS)
+        // Valores abaixo de 20.250 MT após INSS são isentos (retorna 0 na função calculateIRPS pelo bracket)
+        const rendimentoColetavel = Math.max(0, bruto - inssDiscount);
+        const irtDiscount = calculateIRPS(rendimentoColetavel, data.dependents || 0);
 
         const totalDescontos = inssDiscount + irtDiscount + (data.absences_discount || 0) + (data.other_deductions || 0);
         const netSalary = bruto - totalDescontos;
