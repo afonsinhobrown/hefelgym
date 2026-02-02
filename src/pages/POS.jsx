@@ -658,7 +658,7 @@ const POS = () => {
                 {/* Right Side: Cart */}
                 <div className="pos-cart">
                     <div className="cart-header">
-                        <h3>Carrinho Atual</h3>
+                        <h3>Carrinho</h3>
 
                         {/* SELECTOR DE CLIENTE PESQUISÁVEL - CORRIGIDO */}
                         <div className="client-search-wrapper mb-3" ref={clientSearchRef}>
