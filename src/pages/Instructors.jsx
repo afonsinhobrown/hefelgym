@@ -55,6 +55,60 @@ const Instructors = () => {
         );
     });
 
+    // Editable Cell Component
+    const EditableCell = ({ instructor, field, value, color = 'white' }) => {
+        const isEditing = editingCell?.instructorId === instructor.id && editingCell?.field === field;
+
+        // Style reuse - TD Style replicated
+        const cellStyle = {
+            padding: '16px 12px',
+            fontSize: '13px',
+            textAlign: 'right',
+            fontFamily: 'monospace',
+            color: color,
+            cursor: isViewingHistory ? 'default' : 'pointer',
+            background: isEditing ? '#1e3a8a' : 'transparent',
+            transition: 'background 0.2s'
+        };
+
+        if (isEditing) {
+            return (
+                <td style={cellStyle}>
+                    <input
+                        type="number"
+                        value={tempValue}
+                        onChange={(e) => setTempValue(e.target.value)}
+                        onBlur={handleCellBlur}
+                        onKeyDown={handleCellKeyDown}
+                        autoFocus
+                        style={{
+                            width: '100%',
+                            background: '#0f172a',
+                            border: '2px solid #3b82f6',
+                            borderRadius: '4px',
+                            color: 'white',
+                            padding: '4px 8px',
+                            fontFamily: 'monospace',
+                            fontSize: '13px',
+                            textAlign: 'right',
+                            outline: 'none'
+                        }}
+                    />
+                </td>
+            );
+        }
+
+        return (
+            <td
+                style={cellStyle}
+                onClick={() => handleCellClick(instructor, field)}
+                title={isViewingHistory ? 'Modo somente leitura' : 'Clique para editar'}
+            >
+                {(typeof value === 'number' ? value : 0).toLocaleString()}
+            </td>
+        );
+    };
+
     const totalLiquido = instructors.filter(isInternal).reduce((sum, i) => sum + (i.net_salary || 0), 0);
     const totalINSS = instructors.filter(isInternal).reduce((sum, i) => sum + (i.inss_discount || 0) + (i.inss_company || 0), 0);
 
@@ -213,18 +267,10 @@ const Instructors = () => {
                 synced: 0
             };
 
-            const response = await fetch('http://localhost:3001/api/payroll-history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(snapshot)
-            });
+            await db.payroll.create(snapshot);
+            alert(`✅ Folha de ${monthName}/${year} guardada com sucesso!`);
+            loadPayrollHistory();
 
-            if (response.ok) {
-                alert(`✅ Folha de ${monthName}/${year} guardada com sucesso!`);
-                loadPayrollHistory();
-            } else {
-                throw new Error('Erro ao guardar snapshot');
-            }
         } catch (err) {
             alert('Erro ao guardar folha: ' + err.message);
         }
@@ -232,9 +278,8 @@ const Instructors = () => {
 
     const loadPayrollHistory = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/payroll-history');
-            const data = await response.json();
-            setPayrollHistory(data);
+            const data = await db.payroll.getAll();
+            setPayrollHistory(data || []);
         } catch (err) {
             console.error('Erro ao carregar histórico:', err);
         }

@@ -196,6 +196,25 @@ export const db = {
         }
     },
 
+    // Histórico de Folhas (NOVO)
+    payroll: {
+        getAll: async () => {
+            if (USE_LOCAL_SERVER) return api.get('payroll-history');
+            const { data, error } = await supabase
+                .from('payroll_history')
+                .select('*')
+                .order('month', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+        create: async (data) => {
+            if (USE_LOCAL_SERVER) return api.post('payroll-history', data);
+            const { data: res, error } = await supabase.from('payroll_history').insert(data).select().single();
+            if (error) throw error;
+            return res;
+        }
+    },
+
     clients: {
         getAll: async () => {
             const gymId = getAuthGymId();
