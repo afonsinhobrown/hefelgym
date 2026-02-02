@@ -14,8 +14,8 @@ echo.
 echo [1/3] A iniciar Servidor Local...
 start "HefelGym Server" /min cmd /k "node server/server.cjs"
 
-:: Aguardar 3 segundos para a BD carregar
-timeout /t 3 /nobreak >nul
+:: Aguardar brevemente para a BD carregar
+timeout /t 1 /nobreak >nul
 
 :: 2. Iniciar Frontend (Interface) -> Porta 8080
 echo [2/3] A iniciar Interface Web...
@@ -26,8 +26,8 @@ if not exist node_modules (
 )
 start "HefelGym Interface" /min cmd /k "npm run dev"
 
-:: Aguardar 5 segundos para o Vite arrancar
-timeout /t 5 /nobreak >nul
+:: Aguardar brevemente para o Vite arrancar
+timeout /t 2 /nobreak >nul
 
 :: 3. Abrir Navegador
 echo [3/3] A abrir o sistema...

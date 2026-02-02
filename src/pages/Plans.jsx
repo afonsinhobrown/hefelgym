@@ -44,12 +44,33 @@ const Plans = () => {
 
             <div className="card-body">
               <ul className="features-list">
-                {(plan.features || []).map((feature, index) => (
-                  <li key={index}>
-                    <Check size={16} className={`check-icon text-${plan.color}`} />
-                    <span>{feature}</span>
-                  </li>
-                ))}
+                {(() => {
+                  const features = plan.features;
+                  let featuresArray = [];
+
+                  if (Array.isArray(features)) {
+                    featuresArray = features;
+                  } else if (typeof features === 'string') {
+                    if (features.startsWith('[') && features.endsWith(']')) {
+                      try { featuresArray = JSON.parse(features); } catch (e) { featuresArray = [features]; }
+                    } else if (features.includes(',')) {
+                      featuresArray = features.split(',').map(f => f.trim());
+                    } else if (features.trim() === '') {
+                      featuresArray = [];
+                    } else {
+                      featuresArray = [features];
+                    }
+                  }
+
+                  if (featuresArray.length === 0) return <li className="text-xs italic opacity-50">Sem características definidas</li>;
+
+                  return featuresArray.map((feature, index) => (
+                    <li key={index}>
+                      <Check size={16} className={`check-icon text-${plan.color || 'primary'}`} />
+                      <span>{feature}</span>
+                    </li>
+                  ));
+                })()}
               </ul>
             </div>
 

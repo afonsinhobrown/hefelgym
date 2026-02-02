@@ -64,51 +64,46 @@ const Layout = () => {
         </main>
       </div>
 
-      {/* SYNC BLOCKER OVERLAY */}
+      {/* DISCREET SYNC INDICATOR (Replaces full blocker) */}
       {isSyncing && (
-        <div className="sync-overlay">
-          <div className="sync-content glass">
-            <RefreshCw size={48} className="spin-icon" />
-            <h2>A Sincronizar...</h2>
-            <p>A atualizar dados com a nuvem. Por favor aguarde.</p>
-            <div className="progress-bar">
-              <div className="progress-fill"></div>
-            </div>
-          </div>
+        <div className="sync-pill-indicator">
+          <RefreshCw size={14} className="spin-icon" />
+          <span>Sincronizando...</span>
         </div>
       )}
 
       <style>{`
-        .sync-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); z-index: 99999;
-            display: flex; align-items: center; justify-content: center;
+        .sync-pill-indicator {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(15, 23, 42, 0.9);
             backdrop-filter: blur(8px);
-        }
-        .sync-content {
-            padding: 3rem; border-radius: 1rem; text-align: center;
             border: 1px solid var(--primary);
-            box-shadow: 0 0 50px rgba(0,255,136,0.2);
+            padding: 8px 16px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            animation: slideInUp 0.3s ease-out;
         }
+
+        @keyframes slideInUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         .spin-icon { 
-            color: var(--primary); margin-bottom: 1.5rem; 
-            animation: spin 1s linear infinite; 
+            color: var(--primary);
+            animation: spin 1.5s linear infinite; 
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        .progress-bar {
-            height: 4px; background: rgba(255,255,255,0.1); width: 100%;
-            margin-top: 1.5rem; border-radius: 2px; overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%; background: var(--primary); width: 50%;
-            animation: progress 2s ease-in-out infinite;
-        }
-        @keyframes progress {
-            0% { width: 0%; transform: translateX(-50%); }
-            100% { width: 100%; transform: translateX(100%); }
-        }
-
         .app-layout {
           display: flex;
           min-height: 100vh;

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { Printer, ShoppingCart, Trash2, Search, Plus, Minus, Save, Send, User, Check, FileText, Share2 } from 'lucide-react';
+import { Printer, ShoppingCart, Trash2, Search, Plus, Minus, Save, Send, User, Check, FileText, Share2, Search as SearchIcon, X, UserPlus, Calendar, ChevronDown } from 'lucide-react';
 import InvoiceTemplate from '../components/Invoices/InvoiceTemplate';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-
 
 // Helper para conversão de Base64 para Blob (para upload)
 function dataURItoBlob(dataURI) {
@@ -24,17 +23,83 @@ const POS = () => {
     const [clients, setClients] = useState([]);
     const [plans, setPlans] = useState([]);
     const [cart, setCart] = useState([]);
-    const [selectedClient, setSelectedClient] = useState('');
     const [search, setSearch] = useState('');
     const [generatedInvoice, setGeneratedInvoice] = useState(null);
     const [printingInvoice, setPrintingInvoice] = useState(null);
-    const [lastSale, setLastSale] = useState(null); // Para modal de sucesso
+    const [lastSale, setLastSale] = useState(null);
 
     const [payMethod, setPayMethod] = useState('cash');
     const [payRef, setPayRef] = useState('');
     const [isPaymentStep, setIsPaymentStep] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [planStartDate, setPlanStartDate] = useState(new Date().toISOString().split('T')[0]);
 
+    // Estado para o seletor de cliente pesquisável
+    const [clientSearchInput, setClientSearchInput] = useState('');
+    const [showClientDropdown, setShowClientDropdown] = useState(false);
+    const [selectedClient, setSelectedClient] = useState(null);
+    const clientSearchRef = useRef(null);
+
+    // Fechar dropdown ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (clientSearchRef.current && !clientSearchRef.current.contains(event.target)) {
+                setShowClientDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Filtro inteligente de clientes
+    const filteredClients = useMemo(() => {
+        if (!clients) return [];
+        if (!clientSearchInput || typeof clientSearchInput !== 'string' || !clientSearchInput.trim()) {
+            return clients.slice(0, 10);
+        }
+
+        const searchTerm = clientSearchInput.toLowerCase();
+        return clients.filter(client => {
+            return (
+                (client.name && client.name.toLowerCase().includes(searchTerm)) ||
+                (client.phone && client.phone.includes(searchTerm)) ||
+                (client.email && client.email.toLowerCase().includes(searchTerm)) ||
+                (client.nuit && client.nuit.includes(searchTerm))
+            );
+        }).slice(0, 15);
+    }, [clients, clientSearchInput]);
+
+    // Selecionar cliente
+    const handleSelectClient = (client) => {
+        if (client === null) {
+            // Cliente avulso
+            setSelectedClient({
+                id: null,
+                name: clientSearchInput || 'Cliente Avulso',
+                phone: '',
+                isTemp: true
+            });
+            setClientSearchInput(clientSearchInput || 'Cliente Avulso');
+        } else {
+            setSelectedClient(client);
+            setClientSearchInput(client.name || '');
+        }
+        setShowClientDropdown(false);
+    };
+
+    // Limpar seleção
+    const handleClearClient = () => {
+        setSelectedClient(null);
+        setClientSearchInput('');
+        setShowClientDropdown(true);
+        setTimeout(() => {
+            if (clientSearchRef.current) {
+                clientSearchRef.current.querySelector('input')?.focus();
+            }
+        }, 100);
+    };
+
+    // Carregar dados
     useEffect(() => {
         const loadData = async () => {
             await db.init();
@@ -45,35 +110,36 @@ const POS = () => {
                 setProducts(prods || []);
                 setClients(clis || []);
                 setPlans(pls || []);
-            } catch (e) { console.error("Erro loading POS async:", e); }
+            } catch (e) {
+                console.error("Erro loading POS async:", e);
+            }
         };
         loadData();
     }, []);
 
     // Reset payment fields when cart clears
-    useEffect(() => { if (cart.length === 0) setIsPaymentStep(false); }, [cart]);
+    useEffect(() => {
+        if (cart.length === 0) setIsPaymentStep(false);
+    }, [cart]);
 
-    /* Lógica PDF igual às Faturas */
-    /* Lógica PDF igual às Faturas */
+    // Lógica PDF
     useEffect(() => {
         if (printingInvoice) {
             const generatePDF = async () => {
                 setIsSending(true);
                 try {
-                    // Pequeno delay para garantir renderização DOM
                     await new Promise(resolve => setTimeout(resolve, 800));
 
                     const originalElement = document.getElementById('pos-print-container');
                     if (!originalElement) throw new Error('Elemento de impressão não encontrado');
 
-                    // TÉCNICA DE CLONAGEM PARA FORÇAR VISIBILIDADE
                     const clone = originalElement.cloneNode(true);
                     clone.style.position = 'fixed';
                     clone.style.top = '0';
                     clone.style.left = '0';
                     clone.style.zIndex = '99999';
                     clone.style.background = 'white';
-                    clone.style.width = '80mm'; // CORREÇÃO: Largura térmica correta para o POS
+                    clone.style.width = '80mm';
                     clone.style.display = 'block';
                     clone.style.visibility = 'visible';
                     document.body.appendChild(clone);
@@ -96,9 +162,7 @@ const POS = () => {
 
                     const pdfBase64 = pdf.output('datauristring');
 
-                    // PROVA: Baixar ficheiro
                     pdf.save(`Recibo_${printingInvoice.id}.pdf`);
-
                     console.log("PDF Gerado. Tamanho: " + pdfBase64.length);
                     await sendToBot(printingInvoice, pdfBase64);
                 } catch (err) {
@@ -113,22 +177,7 @@ const POS = () => {
         }
     }, [printingInvoice]);
 
-
-
-    // Helper para conversão de Base64 para Blob (para upload)
-    function dataURItoBlob(dataURI) {
-        const byteString = atob(dataURI.split(',')[1]);
-        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
-        return new Blob([ab], { type: mimeString });
-    }
-
     const sendToBot = async (invoice, base64File) => {
-        // 1. Validar Cliente
         let phone = invoice.client?.phone;
         const clientName = invoice.client?.name || 'Cliente';
 
@@ -141,8 +190,6 @@ const POS = () => {
         const message = `*COMPRA HEFEL GYM* 🏋️\n\nOlá *${clientName}*,\nObrigado pela preferência!\nSegue o recibo da sua compra *#${invoice.id}*.\n\nTotal Pago: *${invoice.total.toLocaleString()} MT*\nData: *${new Date(invoice.date).toLocaleDateString()}*\n\nVolte sempre!`;
 
         try {
-            // Tenta enviar via SERVIDOR LOCAL (Bot Automático)
-            // Isto acontece em background, sem abrir janelas
             await fetch('http://localhost:3001/api/whatsapp/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -160,16 +207,22 @@ const POS = () => {
         }
     };
 
-
     const addToCart = (product) => {
         if (!product.price || product.price <= 0) return alert('Este produto não tem preço definido. Edite-o na página de Produtos.');
-        if (product.stock <= 0) return alert('Produto sem stock!');
+
+        if (product.type !== 'plan' && product.type !== 'fee' && product.stock <= 0) return alert('Produto sem stock!');
+
         setCart(prev => {
             const existing = prev.find(item => item.productId === product.id);
             if (existing) {
-                if (existing.qty >= product.stock) return prev;
+                if (product.type === 'plan' && !validatePlanLimits(product, existing.qty, 1)) {
+                    return prev;
+                }
+
+                if (existing.qty >= product.stock && product.type !== 'plan' && product.type !== 'fee') return prev;
                 return prev.map(item => item.productId === product.id ? { ...item, qty: item.qty + 1 } : item);
             }
+
             return [...prev, { ...product, productId: product.id, qty: 1 }];
         });
     };
@@ -178,12 +231,43 @@ const POS = () => {
         setCart(prev => prev.filter(item => item.productId !== productId));
     };
 
+    const handleQuickRegister = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const name = formData.get('name');
+        const phone = formData.get('phone');
+        const nuit = formData.get('nuit');
+
+        try {
+            const newClient = await db.clients.create({
+                name, phone, nuit,
+                gym_id: 'hefel_gym_v1'
+            });
+
+            const allClients = await db.clients.getAll();
+            setClients(allClients);
+
+            handleSelectClient(newClient);
+            setShowQuickRegister(false);
+
+            alert(`✅ Cliente ${name} registado com sucesso! Prossiga com o pagamento.`);
+            setIsPaymentStep(true);
+        } catch (err) {
+            alert("Erro ao criar cliente: " + err.message);
+        }
+    };
+
     const updateQty = (productId, delta) => {
         setCart(prev => prev.map(item => {
             if (item.productId === productId) {
+                if (item.type === 'plan' && delta > 0) {
+                    if (!validatePlanLimits(item, item.qty, delta)) return item;
+                }
+
                 const newQty = item.qty + delta;
-                const product = products.find(p => p.id === productId);
-                if (newQty > product.stock) return item;
+
+                if (item.type !== 'plan' && item.type !== 'fee' && item.stock && newQty > item.stock) return item;
+
                 return newQty > 0 ? { ...item, qty: newQty } : item;
             }
             return item;
@@ -194,14 +278,58 @@ const POS = () => {
         return cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
     };
 
+    // State for Quick Register Modal
+    const [showQuickRegister, setShowQuickRegister] = useState(false);
+
+    const validatePlanLimits = (plan, currentQty, delta) => {
+        const newQty = currentQty + delta;
+
+        // Verificar limites específicos
+        if (plan.name.toLowerCase().includes('diária') || plan.name.toLowerCase().includes('diario')) {
+            if (newQty > 14) {
+                alert('O plano diário não pode ser comprado mais de 14 vezes de uma vez.');
+                return false;
+            }
+        } else if (plan.name.toLowerCase().includes('mensal') || plan.name.toLowerCase().includes('ginásio')) {
+            if (newQty > 6) {
+                alert('O plano mensal não pode ser comprado mais de 6 meses de uma vez.');
+                return false;
+            }
+        } else if (plan.name.toLowerCase().includes('pt ') || plan.name.toLowerCase().includes('personal')) {
+            if (newQty > 12) {
+                alert('O plano PT não pode ser comprado mais de 12 sessões de uma vez.');
+                return false;
+            }
+        }
+
+        return true;
+    };
+
     const handleCheckout = (type) => {
-        if (!selectedClient && type === 'invoice') return alert('Para emitir fatura, selecione um cliente!');
         if (cart.length === 0) return alert('Carrinho vazio!');
+
+        const hasEnrollment = cart.some(i =>
+            i.type === 'fee' ||
+            i.name.toLowerCase().includes('inscrição') ||
+            i.name.toLowerCase().includes('matricula')
+        );
+
+        // Verificar se há cliente selecionado
+        if (!selectedClient && type === 'invoice') {
+            alert('Para emitir fatura, selecione um cliente!');
+            return;
+        }
+
+        // Verificar inscrição sem cliente
+        if (hasEnrollment && !selectedClient?.id) {
+            alert("⚠️ Detectada Taxa de Inscrição!\n\nPor favor registe o cliente para associar a inscrição.");
+            setShowQuickRegister(true);
+            return;
+        }
 
         if (type === 'pay_now') {
             setIsPaymentStep(true);
         } else {
-            // Fatura Pendente (Pagar Depois)
             if (window.confirm(`EMITIR FATURA (Pagar Depois): ${calculateTotal()} MT. Confirmar?`)) {
                 finalizeSale('pendente', null);
             }
@@ -239,94 +367,159 @@ const POS = () => {
 
     const finalizeSale = async (status, paymentDetails) => {
         try {
-            const invoice = await db.inventory.processSale(selectedClient, cart, status, paymentDetails);
+            // Usar o ID do cliente selecionado
+            const clientId = selectedClient?.id || null;
 
-            // Em Cloud Mode, processSale já devolve a fatura.
-            // Precisamos apenas garantir que temos o nome do cliente se não for avulso
-            const clientName = clients.find(c => c.id === selectedClient)?.name || 'Cliente Avulso';
+            const invoice = await db.inventory.processSale(clientId, cart, status, paymentDetails);
 
-            // CRITICAL FIX: Ensure display uses LOCAL data for immediate feedback, 
-            // protecting against backend missing fields (like items or total) in response.
+            if (status === 'pago' && clientId) {
+                const planItem = cart.find(i => i.type === 'plan' || i.name.toLowerCase().includes('plano') || i.name.toLowerCase().includes('pt '));
+
+                if (planItem) {
+                    const quantity = planItem.qty || 1;
+                    const baseDuration = planItem.duration || 30;
+                    const totalDuration = baseDuration * quantity;
+
+                    const startDate = new Date(planStartDate);
+                    const endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + totalDuration);
+
+                    await db.clients.update(clientId, {
+                        plan_id: planItem.id,
+                        plan_name: quantity > 1 ? `${planItem.name} (${quantity}x)` : planItem.name,
+                        start_date: startDate.toISOString(),
+                        end_date: endDate.toISOString(),
+                        status: 'active',
+                        last_payment: new Date().toISOString()
+                    });
+
+                    db.clients.getAll().then(setClients);
+                }
+            }
+
+            const clientName = selectedClient?.name || 'Cliente Avulso';
+
             const fullInvoice = {
                 ...invoice,
-                items: cart, // Trust local cart for display
+                items: cart,
                 total: calculateTotal(),
                 amount: calculateTotal(),
-                status: status, // Ensure status is correctly reflected
+                status: status,
                 clientName,
-                client: { name: clientName, phone: clients.find(c => c.id === selectedClient)?.phone }
+                client: {
+                    name: clientName,
+                    phone: selectedClient?.phone || clients.find(c => c.id === selectedClient?.id)?.phone
+                }
             };
 
             setLastSale(fullInvoice);
             setGeneratedInvoice(fullInvoice);
 
             setCart([]);
-            // Reload products to update stock
-            const updatedProducts = await db.inventory.getAll();
-            setProducts(updatedProducts);
-
-            setSearch('');
             setIsPaymentStep(false);
-            setPayRef('');
-            setPayMethod('cash');
-        } catch (err) {
-            alert('Erro: ' + err.message);
+            setReceived(0);
+            setChange(0);
+
+            // Limpar seleção de cliente após venda
+            setSelectedClient(null);
+            setClientSearchInput('');
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao finalizar venda: ' + error.message);
         }
     };
 
-    // Função para finalmente fechar tudo
     const closeSale = () => {
         setLastSale(null);
         setGeneratedInvoice(null);
-        setSelectedClient('');
+        setSelectedClient(null);
+        setClientSearchInput('');
     };
 
     const [activeTab, setActiveTab] = useState('all');
 
     const filteredProducts = products.concat(
-        // Adicionar Planos como produtos virtuais se não existirem
         plans.map(p => ({
             id: p.id,
             name: p.name,
             price: Number(p.price),
             type: 'plan',
-            stock: 9999, // Unlimited
-            photo_url: null
+            stock: 9999,
+            photo_url: null,
+            duration: p.duration
         }))
     ).filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
         if (!matchesSearch) return false;
 
+        const nameLower = p.name.toLowerCase();
+
+        const isPT = nameLower.includes('pt ') || nameLower.includes('personal');
+        const isFee = p.type === 'fee' || nameLower.includes('inscrição') || nameLower.includes('cartão') || nameLower.includes('ficha') || (nameLower.includes('plano') && nameLower.includes('treino')) || nameLower.includes('avulso');
+        const isProduct = (!p.type || p.type === 'product') && !isPT && !isFee && !nameLower.includes('plano') && !nameLower.includes('mensal') && !nameLower.includes('diária');
+        const isGymPlan = (p.type === 'plan' || nameLower.includes('plano') || nameLower.includes('mensal') || nameLower.includes('diária') || nameLower.includes('semanal') || nameLower.includes('ginasio') || nameLower.includes('ginásio')) && !isPT && !isFee;
+
         if (activeTab === 'all') return true;
-        if (activeTab === 'products') return (!p.type || p.type === 'product');
-        if (activeTab === 'memberships') return (p.type === 'plan' || p.name.toLowerCase().includes('plano') || p.name.toLowerCase().includes('mensal') || p.name.toLowerCase().includes('diária'));
-        if (activeTab === 'fees') return (p.type === 'fee' || p.name.toLowerCase().includes('inscrição') || p.name.toLowerCase().includes('cartão') || p.name.toLowerCase().includes('ficha'));
+        if (activeTab === 'products') return isProduct;
+        if (activeTab === 'pt') return isPT;
+        if (activeTab === 'memberships') return isGymPlan;
+        if (activeTab === 'fees') return isFee;
 
         return true;
     }).sort((a, b) => {
-        // Critério 1: Preço > 0 (Vendáveis primeiro)
         const aHasPrice = a.price > 0;
         const bHasPrice = b.price > 0;
         if (aHasPrice && !bHasPrice) return -1;
         if (!aHasPrice && bHasPrice) return 1;
 
-        // Critério 2: Stock > 0 (Disponíveis primeiro)
         const aHasStock = a.stock > 0;
         const bHasStock = b.stock > 0;
         if (aHasStock && !bHasStock) return -1;
         if (!aHasStock && bHasStock) return 1;
 
-        // Critério 3: Ordem Alfabética
         return a.name.localeCompare(b.name);
     });
 
-    // ... (rest of logic)
+    const isCartValid = useMemo(() => {
+        return true;
+    }, [cart]);
 
     return (
         <div className="pos-page animate-fade-in">
-            {/* ... */}
-            <div className="pos-container no-print">
+            {/* Quick Register Modal */}
+            {showQuickRegister && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <form onSubmit={handleQuickRegister} className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-full max-w-md shadow-2xl relative animate-scale-in">
+                        <button type="button" onClick={() => setShowQuickRegister(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+                            <X size={24} />
+                        </button>
+                        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <UserPlus className="text-primary" /> Registo Rápido
+                        </h2>
 
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Nome do Cliente *</label>
+                                <input name="name" className="input w-full bg-gray-800 border-gray-700 focus:border-primary text-white font-bold text-lg" placeholder="Nome Completo" required autoFocus />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Telefone (WhatsApp)</label>
+                                <input name="phone" className="input w-full bg-gray-800 border-gray-700 focus:border-primary text-white" placeholder="84/85..." />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">NUIT (Opcional)</label>
+                                <input name="nuit" className="input w-full bg-gray-800 border-gray-700 focus:border-primary text-white" placeholder="Opcional" />
+                            </div>
+                        </div>
+
+                        <button type="submit" className="btn btn-primary w-full mt-6 py-3 text-lg font-bold shadow-lg hover:scale-[1.02] active:scale-95 transition-all">
+                            ✅ Criar e Continuar
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            <div className="pos-container no-print">
                 {/* Left Side: Product Grid */}
                 <div className="pos-products">
                     <div className="pos-header flex-col items-start gap-2">
@@ -345,30 +538,51 @@ const POS = () => {
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-2 w-full mt-2 overflow-x-auto pb-1">
+                        <div className="flex gap-3 w-full mt-4 overflow-x-auto pb-2 scrollbar-hide">
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'all' ? 'bg-primary text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                className={`px-5 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all duration-200 shadow-md flex-shrink-0
+                                    ${activeTab === 'all'
+                                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white ring-2 ring-primary/50 scale-105'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-500'}`}
                                 onClick={() => setActiveTab('all')}
                             >
                                 Tudo
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                className={`px-5 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all duration-200 shadow-md flex-shrink-0
+                                    ${activeTab === 'products'
+                                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white ring-2 ring-blue-500/50 scale-105'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-500'}`}
                                 onClick={() => setActiveTab('products')}
                             >
-                                Produtos
+                                🥤 Produtos
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'memberships' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                className={`px-5 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all duration-200 shadow-md flex-shrink-0
+                                    ${activeTab === 'memberships'
+                                        ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white ring-2 ring-purple-500/50 scale-105'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-500'}`}
                                 onClick={() => setActiveTab('memberships')}
                             >
-                                Mensalidades/Planos
+                                🏋️ Planos Ginásio
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'fees' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                className={`px-5 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all duration-200 shadow-md flex-shrink-0
+                                    ${activeTab === 'pt'
+                                        ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white ring-2 ring-pink-500/50 scale-105'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-500'}`}
+                                onClick={() => setActiveTab('pt')}
+                            >
+                                💪 Personal Trainer
+                            </button>
+                            <button
+                                className={`px-5 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all duration-200 shadow-md flex-shrink-0
+                                    ${activeTab === 'fees'
+                                        ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white ring-2 ring-orange-500/50 scale-105'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700 hover:border-gray-500'}`}
                                 onClick={() => setActiveTab('fees')}
                             >
-                                Inscrições/Taxas
+                                📝 Taxas
                             </button>
                         </div>
                     </div>
@@ -384,10 +598,11 @@ const POS = () => {
                                     {product.photo_url ? (
                                         <img src={product.photo_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
                                     ) : (
-                                        // Dynamic Icon based on type
-                                        product.type === 'plan' || product.name.toLowerCase().includes('plano') ? 'P' :
-                                            product.type === 'fee' || product.name.toLowerCase().includes('inscrição') ? 'T' :
-                                                product.name.charAt(0)
+                                        product.name.toLowerCase().includes('pt ') || product.name.toLowerCase().includes('personal') ? 'PT' :
+                                            product.name.toLowerCase().includes('treino') || product.name.toLowerCase().includes('ficha') ? 'F' :
+                                                product.type === 'plan' || product.name.toLowerCase().includes('plano') ? 'P' :
+                                                    product.type === 'fee' || product.name.toLowerCase().includes('inscrição') ? 'T' :
+                                                        product.name.charAt(0)
                                     )}
                                 </div>
                                 <div className="product-info">
@@ -404,16 +619,170 @@ const POS = () => {
                 <div className="pos-cart">
                     <div className="cart-header">
                         <h3>Carrinho Atual</h3>
-                        <div className="client-select">
-                            <User size={18} />
-                            <select
-                                className="input"
-                                value={selectedClient}
-                                onChange={e => setSelectedClient(e.target.value)}
-                            >
-                                <option value="">Cliente Avulso / Selecionar...</option>
-                                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
+
+                        {/* SELECTOR DE CLIENTE PESQUISÁVEL - CORRIGIDO */}
+                        <div className="client-search-wrapper mb-3" ref={clientSearchRef}>
+                            <div className="relative">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <User size={18} className="text-gray-400" />
+                                    <label className="text-sm font-medium text-gray-300">
+                                        Cliente {selectedClient?.isTemp && <span className="text-yellow-500 text-xs">(Avulso)</span>}
+                                    </label>
+                                </div>
+
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-3 pl-11 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
+                                        placeholder="Digite nome, telefone ou email..."
+                                        value={clientSearchInput}
+                                        onChange={(e) => {
+                                            setClientSearchInput(e.target.value);
+                                            setShowClientDropdown(true);
+                                        }}
+                                        onFocus={() => setShowClientDropdown(true)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && filteredClients.length > 0) {
+                                                handleSelectClient(filteredClients[0]);
+                                            }
+                                            if (e.key === 'Escape') {
+                                                setShowClientDropdown(false);
+                                            }
+                                        }}
+                                    />
+
+                                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                        <Search size={18} className="text-gray-400" />
+                                    </div>
+
+                                    {clientSearchInput && (
+                                        <button
+                                            onClick={handleClearClient}
+                                            className="absolute right-10 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-700 rounded"
+                                            type="button"
+                                        >
+                                            <X size={16} className="text-gray-400 hover:text-white" />
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={() => setShowClientDropdown(!showClientDropdown)}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
+                                        type="button"
+                                    >
+                                        <ChevronDown size={18} className={`text-gray-400 transition-transform ${showClientDropdown ? 'rotate-180' : ''}`} />
+                                    </button>
+                                </div>
+
+                                {/* DROPDOWN DE CLIENTES */}
+                                {showClientDropdown && (
+                                    <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto animate-fade-in">
+                                        {/* Opção Cliente Avulso */}
+                                        <div
+                                            className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-800 transition-colors ${!selectedClient?.id ? 'bg-gray-800' : ''}`}
+                                            onClick={() => handleSelectClient(null)}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <span className="font-bold text-white">
+                                                        {clientSearchInput || 'Cliente Avulso'}
+                                                    </span>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded">Avulso</span>
+                                                        <span className="text-xs text-gray-400">
+                                                            {clientSearchInput ? `Usar: "${clientSearchInput}"` : 'Venda sem registo'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {!selectedClient?.id && (
+                                                    <Check size={16} className="text-green-500" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Lista de Clientes Registados */}
+                                        <div className="max-h-64 overflow-y-auto">
+                                            {filteredClients.length > 0 ? (
+                                                filteredClients.map(client => (
+                                                    <div
+                                                        key={client.id}
+                                                        className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-800 transition-colors ${selectedClient?.id === client.id ? 'bg-gray-800' : ''}`}
+                                                        onClick={() => handleSelectClient(client)}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold text-white truncate">
+                                                                        {client.name}
+                                                                    </span>
+                                                                    {client.status === 'active' && (
+                                                                        <span className="text-xs px-1.5 py-0.5 bg-green-500/20 text-green-500 rounded">
+                                                                            Ativo
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
+                                                                    {client.phone && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            📱 {client.phone}
+                                                                        </span>
+                                                                    )}
+                                                                    {client.email && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            ✉️ {client.email}
+                                                                        </span>
+                                                                    )}
+                                                                    {client.nuit && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            🏢 NUIT: {client.nuit}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {selectedClient?.id === client.id && (
+                                                                <Check size={16} className="text-green-500 ml-2 flex-shrink-0" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : clientSearchInput ? (
+                                                <div className="p-4 text-center">
+                                                    <div className="text-gray-400 mb-2">Nenhum cliente encontrado</div>
+                                                    <button
+                                                        onClick={() => setShowQuickRegister(true)}
+                                                        className="btn btn-primary btn-sm flex items-center gap-2 mx-auto"
+                                                        type="button"
+                                                    >
+                                                        <UserPlus size={14} />
+                                                        Registar novo cliente
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="p-4 text-center text-gray-500">
+                                                    Digite para pesquisar clientes...
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Botão para adicionar novo cliente */}
+                                        {clientSearchInput && filteredClients.length === 0 && (
+                                            <div className="p-3 border-t border-gray-800 bg-gray-900/50">
+                                                <button
+                                                    onClick={() => {
+                                                        setShowClientDropdown(false);
+                                                        setShowQuickRegister(true);
+                                                    }}
+                                                    className="w-full btn btn-outline btn-sm flex items-center justify-center gap-2"
+                                                    type="button"
+                                                >
+                                                    <UserPlus size={14} />
+                                                    Criar cliente: "{clientSearchInput}"
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -509,6 +878,24 @@ const POS = () => {
                                         <input required type="text" className="input w-full" placeholder="Ex: 8JSH29..." value={payRef} onChange={e => setPayRef(e.target.value)} />
                                     </div>
                                 )}
+
+                                {/* Plan Start Date Selection */}
+                                {(cart.some(i => i.type === 'plan' || i.name.toLowerCase().includes('plano') || i.name.toLowerCase().includes('pt '))) && (
+                                    <div className="form-group mb-4 bg-gray-800 p-2 rounded border border-gray-700">
+                                        <label className="text-sm text-primary font-bold block mb-1 flex items-center gap-2">
+                                            <Calendar size={14} /> Data Início do Plano
+                                        </label>
+                                        <input
+                                            type="date"
+                                            className="input w-full bg-gray-700 text-white font-bold"
+                                            value={planStartDate}
+                                            onChange={e => setPlanStartDate(e.target.value)}
+                                        />
+                                        <small className="text-xs text-gray-500 block mt-1">
+                                            A validade será calculada a partir desta data.
+                                        </small>
+                                    </div>
+                                )}
                                 <div className="checkout-actions" style={{ marginTop: '1rem' }}>
                                     <button type="button" className="btn btn-outline" onClick={() => setIsPaymentStep(false)}>
                                         Cancelar
@@ -533,155 +920,123 @@ const POS = () => {
                         )}
                     </div>
                 </div>
-
             </div>
 
             <style>{`
-        /* Reuse POS Styles */
-        /* Reuse POS Styles */
-        /* Changed height calculation to assume header availability and added padding-bottom for safety */
-        .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
-        .pos-container { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; height: 100%; padding-bottom: 1rem; }
-        
-        .pos-products { display: flex; flex-direction: column; overflow: hidden; padding-right: 0.5rem; }
-        .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-shrink: 0; }
-        
-        .products-grid { 
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.8rem; 
-          overflow-y: auto; padding-right: 0.5rem; flex: 1;
-          align-content: start; /* CORREÇÃO: Impede que os cartões estiquem verticalmente */
-        }
+                .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
+                .pos-container { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; height: 100%; padding-bottom: 1rem; }
+                
+                .pos-products { display: flex; flex-direction: column; overflow: hidden; padding-right: 0.5rem; }
+                .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-shrink: 0; }
+                
+                .products-grid { 
+                    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.8rem; 
+                    overflow-y: auto; padding-right: 0.5rem; flex: 1;
+                    align-content: start;
+                }
 
-        .pos-cart { 
-          background: var(--bg-card); 
-          display: flex; flex-direction: column; height: 100%; maxHeight: 100%;
-          border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden;
-        }
-        
-        .cart-header { padding: 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-card); }
-        .client-select { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
-        
-        /* A lista de itens deve ocupar o espaço disponível e ter scroll */
-        .cart-items { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 1rem; 
-            min-height: 0; /* Importante para o Flexbox não transbordar */
-        }
+                .pos-cart { 
+                    background: var(--bg-card); 
+                    display: flex; flex-direction: column; height: 100%; maxHeight: 100%;
+                    border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden;
+                }
+                
+                .cart-header { padding: 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-card); }
+                
+                .cart-items { 
+                    flex: 1; 
+                    overflow-y: auto; 
+                    padding: 1rem; 
+                    min-height: 0;
+                }
 
-        .cart-footer { 
-            padding: 1rem; 
-            background: var(--bg-card); 
-            border-top: 1px solid var(--border); 
-            flex-shrink: 0; /* Não encolher */
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.2); /* Sombra para separar */
-            z-index: 10;
-        }
+                .cart-footer { 
+                    padding: 1rem; 
+                    background: var(--bg-card); 
+                    border-top: 1px solid var(--border); 
+                    flex-shrink: 0;
+                    box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+                    z-index: 10;
+                }
 
-        /* Classes Restauradas */
-        .product-card { 
-          background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-          padding: 1rem; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center;
-        }
-        .product-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .product-card.disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .product-icon { 
-          width: 40px; height: 40px; background: var(--bg-card-hover); border-radius: 50%; 
-          display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 0.5rem; color: var(--primary);
-        }
-        .product-info h4 { font-size: 0.9rem; margin-bottom: 0.2rem; }
-        .product-info .stock { font-size: 0.75rem; color: var(--text-muted); display: block; }
-        .product-info .price { font-weight: 700; color: var(--text-main); display: block; margin-top: 0.25rem; }
+                .product-card { 
+                    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 1rem; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center;
+                }
+                .product-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+                .product-card.disabled { opacity: 0.5; cursor: not-allowed; }
+                
+                .product-icon { 
+                    width: 40px; height: 40px; background: var(--bg-card-hover); border-radius: 50%; 
+                    display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 0.5rem; color: var(--primary);
+                }
+                .product-info h4 { font-size: 0.9rem; margin-bottom: 0.2rem; }
+                .product-info .stock { font-size: 0.75rem; color: var(--text-muted); display: block; }
+                .product-info .price { font-weight: 700; color: var(--text-main); display: block; margin-top: 0.25rem; }
 
-        .empty-cart { 
-          display: flex; flex-direction: column; align-items: center; justify-content: center; 
-          height: 100%; color: var(--text-muted); gap: 1rem; opacity: 0.5; 
-        }
-        
-        .cart-item { 
-          display: flex; align-items: center; justify-content: space-between; 
-          margin-bottom: 0.5rem; padding: 0.75rem; 
-          background: rgba(255, 255, 255, 0.05); /* Fundo subtil */
-          border-radius: var(--radius);
-          border: 1px solid transparent;
-          gap: 0.5rem;
-        }
-        .cart-item:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); }
-        .item-name { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .item-name span { font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .item-name small { color: var(--text-muted); font-size: 0.75rem; }
-        
-        .item-controls { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-main); padding: 0.2rem; border-radius: 4px; }
-        .item-controls button { padding: 4px; border: none; background: transparent; color: var(--text-main); cursor: pointer; display: flex; }
-        .item-controls button:hover { color: var(--primary); }
-        .item-controls span { font-size: 0.9rem; min-width: 1.5rem; text-align: center; font-weight: bold; }
+                .empty-cart { 
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                    height: 100%; color: var(--text-muted); gap: 1rem; opacity: 0.5; 
+                }
+                
+                .cart-item { 
+                    display: flex; align-items: center; justify-content: space-between; 
+                    margin-bottom: 0.5rem; padding: 0.75rem; 
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: var(--radius);
+                    border: 1px solid transparent;
+                    gap: 0.5rem;
+                }
+                .cart-item:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); }
+                .item-name { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+                .item-name span { font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .item-name small { color: var(--text-muted); font-size: 0.75rem; }
+                
+                .item-controls { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-main); padding: 0.2rem; border-radius: 4px; }
+                .item-controls button { padding: 4px; border: none; background: transparent; color: var(--text-main); cursor: pointer; display: flex; }
+                .item-controls button:hover { color: var(--primary); }
+                .item-controls span { font-size: 0.9rem; min-width: 1.5rem; text-align: center; font-weight: bold; }
 
-        .item-total { font-weight: bold; color: var(--primary); font-size: 0.9rem; min-width: 60px; text-align: right; }
-        .delete-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; margin-left: 4px; }
-        .delete-btn:hover { color: #ef4444; }
-        
-        .cart-footer { padding: 1.5rem; background: var(--bg-card-hover); border-top: 1px solid var(--border); }
-        .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 1.1rem; }
-        .total-amount { font-weight: 800; font-size: 1.5rem; color: var(--primary); }
-        
-        .checkout-actions { display: flex; gap: 1rem; }
-        .checkout-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.8rem; font-size: 1rem; gap: 0.2rem; }
-        .sub-text { font-size: 0.7rem; font-weight: 400; opacity: 0.8; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
-        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-        
-        @media (max-width: 1024px) {
-          .pos-container { grid-template-columns: 1fr; overflow-y: auto; }
-          .pos-page { height: auto; overflow: auto; }
-        }
-        
-        .search-box { position: relative; max-width: 300px; }
-        .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-        .search-input { padding-left: 2.5rem; width: 100%; }
+                .item-total { font-weight: bold; color: var(--primary); font-size: 0.9rem; min-width: 60px; text-align: right; }
+                .delete-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; margin-left: 4px; }
+                .delete-btn:hover { color: #ef4444; }
+                
+                .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 1.1rem; }
+                .total-amount { font-weight: 800; font-size: 1.5rem; color: var(--primary); }
+                
+                .checkout-actions { display: flex; gap: 1rem; }
+                .checkout-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.8rem; font-size: 1rem; gap: 0.2rem; }
+                .sub-text { font-size: 0.7rem; font-weight: 400; opacity: 0.8; }
+                .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+                .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+                
+                @media (max-width: 1024px) {
+                    .pos-container { grid-template-columns: 1fr; overflow-y: auto; }
+                    .pos-page { height: auto; overflow: auto; }
+                }
+                
+                .search-box { position: relative; max-width: 300px; }
+                .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+                .search-input { padding-left: 2.5rem; width: 100%; }
 
-        .quick-cash-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; padding: 2px; }
-        .quick-cash-grid button { padding: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
-        .quick-cash-grid button:hover { border-color: var(--primary); color: var(--primary); }
+                .quick-cash-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; padding: 2px; }
+                .quick-cash-grid button { padding: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
+                .quick-cash-grid button:hover { border-color: var(--primary); color: var(--primary); }
 
-        /* Modal Styles */
-        .success-modal { text-align: center; padding: 2.5rem; width: 400px; max-width: 90%; }
-        .success-icon { 
-            width: 80px; height: 80px; background: rgba(16,185,129,0.1); color: var(--success); 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
-        }
-        .success-amount { margin: 1.5rem 0; background: var(--bg-main); padding: 1rem; border-radius: var(--radius); }
-        .success-amount small { display: block; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-        .success-amount span { display: block; font-size: 2rem; font-weight: 800; color: var(--primary); }
-        
-        .success-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 2rem 0; }
-        .action-btn { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;
-            padding: 1.5rem; background: var(--bg-card-hover); border: 1px solid var(--border); border-radius: var(--radius);
-            color: var(--text-main); cursor: pointer; transition: all 0.2s;
-        }
-        .action-btn:hover { border-color: var(--primary); transform: translateY(-3px); }
-        .action-btn.print:hover { color: var(--info); border-color: var(--info); }
-        .action-btn.whatsapp:hover { color: var(--success); border-color: var(--success); }
-        
-        .btn-new-sale { 
-            width: 100%; padding: 1rem; background: var(--primary); color: white; border: none; border-radius: var(--radius); 
-            font-weight: 600; cursor: pointer; 
-        }
+                .client-search-wrapper .btn { padding: 0.5rem 1rem; }
+                .client-search-wrapper .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.875rem; }
 
-        /* PRINT STYLES - CRUCIAL PARA TÉRMICA */
-        .print-only { display: none; }
-        
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-            .modal-overlay { display: none !important; }
-            
-            /* Reset body for thermal print width (usually controlled by printer settings, but good to ensure flow) */
-            body, html { width: 100%; margin: 0; padding: 0; background: white; }
-            .pos-page { height: auto; overflow: visible; }
-        }
-      `}</style>
+                .print-only { display: none; }
+                
+                @media print {
+                    .no-print { display: none !important; }
+                    .print-only { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+                    .modal-overlay { display: none !important; }
+                    
+                    body, html { width: 100%; margin: 0; padding: 0; background: white; }
+                    .pos-page { height: auto; overflow: visible; }
+                }
+            `}</style>
         </div>
     );
 };

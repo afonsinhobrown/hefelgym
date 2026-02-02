@@ -52,8 +52,8 @@ async function connectToWhatsApp() {
     });
 }
 // Iniciar WhatsApp
-// Iniciar WhatsApp
-connectToWhatsApp();
+// Iniciar WhatsApp - Desativado temporariamente para performance
+// connectToWhatsApp();
 
 app.post('/api/whatsapp/send', async (req, res) => {
     const { number, message } = req.body;
@@ -139,12 +139,31 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS system_config (key TEXT PRIMARY KEY, value TEXT)`);
     // Ensure synced defaults to 0 for local changes to push
     db.run(`CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, nuit TEXT, status TEXT, photo_url TEXT, plan_id TEXT, created_at TEXT, last_access TEXT, synced INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT, price REAL, cost_price REAL DEFAULT 0, stock INTEGER, category TEXT, location_id TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT, price REAL, cost_price REAL DEFAULT 0, stock INTEGER, category TEXT, type TEXT, location_id TEXT, synced INTEGER DEFAULT 0)`);
+    // Migration for existing databases
+    db.run("ALTER TABLE products ADD COLUMN type TEXT", () => { });
     db.run(`CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, client_id TEXT, client_name TEXT, amount REAL, status TEXT, items TEXT, date TEXT, payment_method TEXT, tax_amount REAL DEFAULT 0, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, name TEXT, price REAL, duration INTEGER, features TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS saas_subscriptions (gym_id TEXT PRIMARY KEY, plan_name TEXT, license_fee REAL, status TEXT, last_payment_date TEXT, next_payment_due TEXT, features TEXT, synced INTEGER DEFAULT 1)`);
     db.run(`CREATE TABLE IF NOT EXISTS access_devices (id TEXT PRIMARY KEY, name TEXT, ip TEXT, port INTEGER, username TEXT, password TEXT, type TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS instructors (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, specialties TEXT, contract_type TEXT, commission REAL, salary REAL DEFAULT 0, role TEXT DEFAULT 'instructor', balance REAL DEFAULT 0, status TEXT, gym_id TEXT, synced INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS instructors (id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, specialties TEXT, contract_type TEXT, commission REAL, base_salary REAL DEFAULT 0, role TEXT DEFAULT 'instructor', balance REAL DEFAULT 0, status TEXT, gym_id TEXT, synced INTEGER DEFAULT 0)`);
+    // Migrações necessárias para a Folha de Salário (Payroll)
+    db.run("ALTER TABLE instructors ADD COLUMN base_salary REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN bonus REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN inss_discount REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN irt_discount REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN other_deductions REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN absences_discount REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN net_salary REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN shift_bonus REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN holiday_bonus REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN night_bonus REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN account_number TEXT", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN extra_hours REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN additional_earnings REAL DEFAULT 0", () => { });
+    db.run("ALTER TABLE instructors ADD COLUMN inss_company REAL DEFAULT 0", () => { }); // 4% empresa
+    db.run("ALTER TABLE instructors ADD COLUMN irps REAL DEFAULT 0", () => { });
+
     db.run(`CREATE TABLE IF NOT EXISTS attendance (id TEXT PRIMARY KEY, device_ip TEXT, user_id TEXT, user_name TEXT, timestamp TEXT, type TEXT, method TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS product_expenses (id TEXT PRIMARY KEY, product_id TEXT, product_name TEXT, quantity INTEGER, unit_cost REAL, total_cost REAL, date TEXT, supplier TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS gym_expenses (
@@ -219,8 +238,9 @@ db.serialize(() => {
 
     // ADD INDEXES FOR PERFORMANCE
     db.run("CREATE INDEX IF NOT EXISTS idx_attendance_user ON attendance(user_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_attendance_time ON attendance(timestamp)");
     db.run("CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id)");
-    db.run("CREATE INDEX IF NOT EXISTS idx_prod_expenses_prod ON product_expenses(product_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_products_gym ON products(gym_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_gym_id_clients ON clients(gym_id)"); // New Index
 
     // Migrações de Faturamento
@@ -264,24 +284,49 @@ db.serialize(() => {
         }
     });
 
-    // 4. SEED: DEFAULT PLANS (Hefel Gym Official Pricing)
-    db.get("SELECT id FROM plans WHERE id = 'plano_mensal_2000'", (err, row) => {
-        if (!row) {
-            console.log("🛠️ Seeding Planos Oficiais Hefel Gym...");
-            const plans = [
-                { id: 'plano_diario', name: 'Diário', price: 300, duration: 1 },
-                { id: 'plano_semanal', name: 'Pacote Semanal', price: 850, duration: 7 },
-                { id: 'plano_fds', name: 'Finais de Semana (Mensal)', price: 850, duration: 30 },
-                { id: 'plano_mensal_2000', name: 'Mensalidade Geral (Full Day)', price: 2000, duration: 30 }
-            ];
+    // 4. SEED: DEFAULT PLANS (Based on Flyer Image + PT Image) - ALWAYS RUN
+    console.log("🛠️ Verificando/Atualizando PACOTES OFICIAIS...");
+    const plans = [
+        // Gym Access
+        { id: 'plano_diario', name: 'Diário Ginásio', price: 300, duration: 1 },
+        { id: 'plano_semanal', name: 'Pacote Semanal', price: 850, duration: 7 },
+        { id: 'plano_fds', name: 'Finais de Semana', price: 850, duration: 30, features: 'Sábados e Domingos' },
+        { id: 'plano_mensal_geral', name: 'Mensalidade Geral (MUS + AUL)', price: 2000, duration: 30, features: 'Full Day (05:00 - 21:00)' },
 
-            plans.forEach(p => {
-                db.run(`INSERT OR REPLACE INTO plans (id, name, price, duration, features, synced) VALUES (?, ?, ?, ?, 'Acesso Geral', 0)`,
-                    [p.id, p.name, p.price, p.duration]);
-            });
-            console.log("✅ Planos Oficiais inseridos.");
-        }
+        // Personal Trainer (Add-ons)
+        { id: 'pt_diario', name: 'PT Diário', price: 400, duration: 1, features: 'Acompanhamento PT' },
+        { id: 'pt_2x', name: 'PT 2x / Semana', price: 2500, duration: 30, features: '8 Sessões/Mês' },
+        { id: 'pt_3x', name: 'PT 3x / Semana', price: 3250, duration: 30, features: '12 Sessões/Mês' },
+        { id: 'pt_4x', name: 'PT 4x / Semana', price: 4500, duration: 30, features: '16 Sessões/Mês' }
+    ];
+
+    // CLEANUP: WIPE ALL PLANS and FEES to ensure only official ones exist
+    db.run("DELETE FROM plans"); // Limpa todos os planos antigos (Standard, Gold, etc.)
+    db.run("DELETE FROM products WHERE type = 'fee' OR category = 'Taxas'"); // Limpa taxas antigas
+
+    // CLEANUP: Kill specific ghost items in PRODUCTS table (not just plans)
+    db.run("DELETE FROM products WHERE name IN ('Anual Premium', 'Mensal Standard', 'Trimestral Gold', 'Diária Ginásio', 'Diária Personal Trainer', 'Plano de Treino Avulso', 'Plano de Treino (Ficha)')");
+
+    plans.forEach(p => {
+        db.run(`INSERT OR REPLACE INTO plans (id, name, price, duration, features, synced) VALUES (?, ?, ?, ?, ?, 0)`,
+            [p.id, p.name, p.price, p.duration, p.features || 'Acesso Geral']);
     });
+
+    // SEED FEES as Products (Taxa, Cartão, Plano Treino)
+    const fees = [
+        { id: 'taxa_inscricao', name: 'Taxa de Inscrição', price: 700, type: 'fee' },
+        { id: 'cartao_acesso', name: 'Cartão de Acesso', price: 500, type: 'fee' },
+        { id: 'plano_treino_paper', name: 'Plano de Treino (Ficha)', price: 70, type: 'fee' }
+    ];
+
+    fees.forEach(f => {
+        db.run(`INSERT OR IGNORE INTO products (id, name, price, type, stock, category, synced) VALUES (?, ?, ?, ?, 9999, 'Taxas', 0)`,
+            [f.id, f.name, f.price, f.type]);
+    });
+
+    console.log("✅ Pacotes e Taxas Oficiais (incluindo PT) inseridos/atualizados.");
+
+
 
     // Migrations
     db.run("ALTER TABLE invoices ADD COLUMN payment_ref TEXT", () => { });
@@ -921,7 +966,17 @@ const syncToCloud = async () => {
     const GYM_ID = await getGymId();
     if (!GYM_ID) return;
 
-    try { const { error } = await supabase.from('company_settings').select('id').limit(1); if (error) throw error; } catch (e) { return; }
+    try {
+        const { error } = await supabase.from('plans').select('id').limit(1);
+        if (error) {
+            console.log("⚠️ Aviso Sync: Ligação ao Supabase indisponível no momento.");
+            isSyncing = false;
+            return false;
+        }
+    } catch (e) {
+        isSyncing = false;
+        return false;
+    }
 
     isSyncing = true;
     console.log(`🔄 SINCRONIZANDO (Ginásio: ${GYM_ID})...`);
@@ -988,9 +1043,11 @@ const syncToCloud = async () => {
             });
         });
 
-        // DOWNLOAD (Cloud -> Local) - RESTAURO DE DADOS DA NUVEM
-        const { data: cloudInvoices } = await supabase.from('invoices').select('*').eq('gym_id', GYM_ID);
-        if (cloudInvoices) {
+        // DOWNLOAD (Cloud -> Local) - RESTAURO DE DATOS DA NUVEM PARA MANTER LOCAL ATUALIZADO
+        // O Supabase é a fonte principal (especialmente para Vercel).
+        const { data: cloudInvoices } = await supabase.from('invoices').select('*').eq('gym_id', GYM_ID).order('date', { ascending: false }).limit(100);
+        if (cloudInvoices && cloudInvoices.length > 0) {
+            console.log(`⬇️ Sincronizando ${cloudInvoices.length} faturas recentes da nuvem...`);
             db.serialize(() => {
                 const stmt = db.prepare(`INSERT OR REPLACE INTO invoices (id, client_id, client_name, amount, status, items, date, payment_method, tax_amount, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,1)`);
                 cloudInvoices.forEach(inv => {
@@ -1003,11 +1060,22 @@ const syncToCloud = async () => {
 
         const { data: cloudClients } = await supabase.from('clients').select('*').eq('gym_id', GYM_ID);
         if (cloudClients && cloudClients.length > 0) {
-            console.log(`⬇️ Restaurando ${cloudClients.length} clientes da nuvem...`);
+            console.log(`⬇️ Sincronizando ${cloudClients.length} clientes da nuvem...`);
             db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO clients (id, name, phone, email, nuit, status, photo_url, created_at, last_access, plan_id, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,?,1)`);
+                const stmt = db.prepare(`INSERT OR REPLACE INTO clients (id, name, phone, email, nuit, status, photo_url, created_at, synced, last_access, plan_id, gym_id) VALUES (?,?,?,?,?,?,?,?,1,?,?,?)`);
                 cloudClients.forEach(c => {
                     stmt.run(c.id, c.name, c.phone, c.email, c.nuit, c.status, c.photo_url, c.created_at, c.last_access, c.plan_id, GYM_ID);
+                });
+                stmt.finalize();
+            });
+        }
+
+        const { data: cloudPlans } = await supabase.from('plans').select('*').eq('gym_id', GYM_ID);
+        if (cloudPlans && cloudPlans.length > 0) {
+            db.serialize(() => {
+                const stmt = db.prepare(`INSERT OR REPLACE INTO plans (id, name, price, duration, features, synced) VALUES (?,?,?,?,?,1)`);
+                cloudPlans.forEach(p => {
+                    stmt.run(p.id, p.name, p.price, p.duration || 30, typeof p.features === 'string' ? p.features : JSON.stringify(p.features || []), GYM_ID);
                 });
                 stmt.finalize();
             });
@@ -1031,8 +1099,10 @@ const syncToCloud = async () => {
             });
         }
 
+        return true;
     } catch (error) {
         console.error("❌ Erro no Sync:", error);
+        return false;
     } finally {
         isSyncing = false;
     }
@@ -1047,7 +1117,19 @@ app.get('/api/clients/:id', (req, res) => {
         res.json(row);
     });
 });
-setInterval(syncToCloud, 60000); // 60s fallback sync
+// O Sincronismo Automático foi reativado para manter o local e a nuvem (Vercel) alinhados.
+setInterval(syncToCloud, 60000);
+
+// Rota para Forçar Sincronização Manual (Local -> Cloud)
+app.post('/api/sync-force', async (req, res) => {
+    if (isSyncing) return res.status(429).json({ error: "Sincronização já em curso..." });
+    try {
+        await syncToCloud();
+        res.json({ status: 'success', message: 'Sincronização concluída com sucesso.' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 
 // === API ROUTES ===
@@ -1103,9 +1185,9 @@ app.post('/api/access/open', async (req, res) => { await openTurnstile(req.body.
 // Clients
 app.get('/api/clients', (req, res) => {
     const query = `
-        SELECT 
+        SELECT
             *,
-            CASE 
+            CASE
                 WHEN name GLOB '*[a-zA-Z]*' THEN 1  -- Nomes reais primeiro
                 ELSE 2                               -- Números depois
             END as sort_priority
@@ -1499,7 +1581,7 @@ app.post('/api/hardware/restore-names-emergency', async (req, res) => {
 });
 
 app.post('/api/hardware/sync-users', (req, res) => {
-    // DESATIVADO: Este comando causou corrupção de nomes. 
+    // DESATIVADO: Este comando causou corrupção de nomes.
     // Só voltaremos a ativar quando o hardware tiver nomes configurados.
     res.status(403).json({ error: "Sincronização automática desativada para proteger a integridade dos nomes." });
 });
@@ -1631,12 +1713,12 @@ app.get('/api/classes', (req, res) => {
 app.post('/api/classes', (req, res) => {
     const { id, name, instructor_id, schedule, capacity, status, attendees, enrolled } = req.body;
     db.run(`CREATE TABLE IF NOT EXISTS classes (
-            id TEXT PRIMARY KEY, 
-            name TEXT, 
-            instructor_id TEXT, 
-            schedule TEXT, 
-            capacity INTEGER, 
-            status TEXT, 
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            instructor_id TEXT,
+            schedule TEXT,
+            capacity INTEGER,
+            status TEXT,
             attendees TEXT,
             enrolled INTEGER DEFAULT 0,
             synced INTEGER DEFAULT 0
@@ -1662,15 +1744,15 @@ app.put('/api/classes/:id', (req, res) => {
     db.run("ALTER TABLE classes ADD COLUMN attendees TEXT", () => { });
     db.run("ALTER TABLE classes ADD COLUMN enrolled INTEGER DEFAULT 0", () => { });
 
-    db.run(`UPDATE classes SET 
-            name = COALESCE(?, name), 
-            instructor_id = COALESCE(?, instructor_id), 
-            schedule = COALESCE(?, schedule), 
-            capacity = COALESCE(?, capacity), 
+    db.run(`UPDATE classes SET
+            name = COALESCE(?, name),
+            instructor_id = COALESCE(?, instructor_id),
+            schedule = COALESCE(?, schedule),
+            capacity = COALESCE(?, capacity),
             status = COALESCE(?, status),
             attendees = COALESCE(?, attendees),
             enrolled = COALESCE(?, enrolled),
-            synced = 0 
+            synced = 0
             WHERE id = ?`,
         [name, instructor_id, JSON.stringify(schedule), capacity, status, JSON.stringify(attendees), enrolled, req.params.id],
         (err) => {
@@ -1701,7 +1783,7 @@ app.get('/api/trainings', (req, res) => {
 app.post('/api/trainings', (req, res) => {
     const { id, name, type, duration, exercises, difficulty, days } = req.body;
     db.run(`CREATE TABLE IF NOT EXISTS trainings (
-            id TEXT PRIMARY KEY, 
+            id TEXT PRIMARY KEY,
             name TEXT,
             type TEXT,
             duration INTEGER,
@@ -1722,14 +1804,14 @@ app.post('/api/trainings', (req, res) => {
 
 app.put('/api/trainings/:id', (req, res) => {
     const { name, type, duration, exercises, difficulty, days } = req.body;
-    db.run(`UPDATE trainings SET 
+    db.run(`UPDATE trainings SET
             name = COALESCE(?, name),
             type = COALESCE(?, type),
             duration = COALESCE(?, duration),
             exercises = COALESCE(?, exercises),
             difficulty = COALESCE(?, difficulty),
             days = COALESCE(?, days),
-            synced = 0 
+            synced = 0
             WHERE id = ?`,
         [name, type, duration, exercises, difficulty, JSON.stringify(days), req.params.id],
         (err) => {
@@ -1786,7 +1868,7 @@ app.post('/api/hardware/user-control', async (req, res) => {
     const { ip, user, pass, userId, action } = req.body; // action: 'block' or 'unblock'
 
     // Para bloquear, geralmente editamos o user e definimos "enabled" como false ou mudamos o UserType.
-    // Simplificação: Vamos assumir que deletar face/cartão ou mudar validade é o caminho, 
+    // Simplificação: Vamos assumir que deletar face/cartão ou mudar validade é o caminho,
     // mas o ISAPI padrão permite editar Info.
     // Se "block", vamos apagar as permissões ou definir expiry date para passado.
     // Melhor abordagem: Sync individual com enable = false.
@@ -2077,8 +2159,31 @@ setInterval(() => {
     });
 }, 24 * 60 * 60 * 1000);
 
+// ========== PAYROLL HISTORY ROUTES ==========
+app.get('/api/payroll-history', (req, res) => {
+    db.all('SELECT * FROM payroll_history ORDER BY year DESC, month DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/payroll-history', (req, res) => {
+    const { id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by } = req.body;
+
+    db.run(
+        `INSERT INTO payroll_history (id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by, synced) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
 
 app.listen(PORT, () => {
     console.log(`🚀 SERVIDOR LOCAL RODANDO NA PORTA ${PORT}`);
+    // Sincronização em background ao iniciar - DESATIVADA (causa crashes)
+    // setTimeout(syncToCloud, 5000);
 });
-

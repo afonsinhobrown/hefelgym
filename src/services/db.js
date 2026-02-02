@@ -280,8 +280,9 @@ export const db = {
 
     plans: {
         getAll: async () => {
-            const { data } = await supabase.from('plans').select('*'); // Sempre nuvem ou cache local
-            return data || [{ id: 'P1', name: 'Mensal', price: 2500 }];
+            if (USE_LOCAL_SERVER) return api.get(`plans`);
+            const { data } = await supabase.from('plans').select('*');
+            return data || [];
         }
     },
 
