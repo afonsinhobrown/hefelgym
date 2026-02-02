@@ -191,7 +191,8 @@ export const db = {
                     }
                 }
 
-                return { ...newInvoice, items: cleanItems }; // Return with parsed items array
+                // FIX: Garantir retorno dos dados originais (incluindo ID gerado) mesmo se newInvoice for null
+                return { ...invoiceData, ...(newInvoice || {}), items: cleanItems };
             }
         }
     },
