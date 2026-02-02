@@ -550,7 +550,21 @@ const POS = () => {
                 <div className="pos-products">
                     <div className="pos-header flex-col items-start gap-2">
                         <div className="flex justify-between w-full items-center">
-                            <h2>Ponto de Venda</h2>
+                            <div className="flex items-center gap-2">
+                                <h2>Ponto de Venda</h2>
+                                {lastSale && (
+                                    <button
+                                        onClick={() => {
+                                            console.log("Forçando reimpressão:", lastSale);
+                                            setPrintingInvoice(lastSale);
+                                        }}
+                                        className="text-xs bg-yellow-600 px-3 py-1 rounded-full text-white font-bold hover:bg-yellow-700 ml-2 animate-pulse flex items-center gap-1 shadow-lg border border-yellow-400"
+                                        title="Clique aqui se o recibo não apareceu automaticamente"
+                                    >
+                                        <Printer size={14} /> Reimprimir Último
+                                    </button>
+                                )}
+                            </div>
                             <div className="search-box">
                                 <Search size={20} className="search-icon" />
                                 <input
