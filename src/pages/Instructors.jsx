@@ -310,11 +310,35 @@ const Instructors = () => {
 
     const exportToPDF = async () => {
         try {
+            // Determinar a data correta para o Título do PDF
+            let pdfDate;
+            let displayDate;
+
+            if (isViewingHistory) {
+                // Se estiver a ver histórico, usa a data desse histórico
+                const hist = payrollHistory.find(h => h.month === selectedMonth);
+                pdfDate = `${hist?.month_name} de ${hist?.year}`;
+                displayDate = new Date().toLocaleDateString('pt-MZ'); // Data de geração no rodapé
+            } else if (isProcessingLate) {
+                // Se estiver em modo retroativo, assume o mês anterior
+                const d = new Date();
+                d.setMonth(d.getMonth() - 1);
+                pdfDate = d.toLocaleDateString('pt-MZ', { month: 'long', year: 'numeric' });
+                displayDate = new Date().toLocaleDateString('pt-MZ');
+            } else {
+                // Modo normal (mês atual)
+                const d = new Date();
+                pdfDate = d.toLocaleDateString('pt-MZ', { month: 'long', year: 'numeric' });
+                displayDate = d.toLocaleDateString('pt-MZ');
+            }
+
+            // Capitalizar primeira letra
+            pdfDate = pdfDate.replace(/^\w/, c => c.toUpperCase());
+
             // Gerar QR Code
-            const qrData = `HEFEL GYM - Folha Salarial ${new Date().toLocaleDateString('pt-MZ')}`;
+            const qrData = `HEFEL GYM - Folha Salarial ${pdfDate} - Gerado em ${displayDate}`;
             const qrCodeDataUrl = await QRCode.toDataURL(qrData, { width: 120 });
 
-            const currentDate = new Date().toLocaleDateString('pt-MZ', { day: '2-digit', month: 'long', year: 'numeric' });
             const totalBruto = filteredInstructors.reduce((sum, i) => sum + ((i.base_salary || 0) + (i.extra_hours || 0) + (i.bonus || 0)), 0);
             const totalINSSWorker = filteredInstructors.reduce((sum, i) => sum + (i.inss_discount || 0), 0);
             const totalFaltas = filteredInstructors.reduce((sum, i) => sum + (i.absences_discount || 0), 0);
@@ -336,7 +360,7 @@ const Instructors = () => {
                     <!-- TITLE -->
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h2 style="margin: 0; font-size: 22px; color: #1e3a8a;">FOLHA DE SALÁRIOS</h2>
-                        <p style="margin: 5px 0; font-size: 14px; color: #666;">Período: ${currentDate}</p>
+                        <p style="margin: 5px 0; font-size: 14px; color: #666;">Período: ${pdfDate}</p>
                     </div>
 
                     <!-- SUMMARY BOX -->
@@ -457,7 +481,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.4</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.5</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -476,7 +500,12 @@ const Instructors = () => {
                     <div style={{ fontSize: '18px', fontWeight: 'bold', color: isViewingHistory ? '#fbbf24' : '#60a5fa' }}>
                         {isViewingHistory
                             ? payrollHistory.find(h => h.month === selectedMonth)?.month_name + '/' + payrollHistory.find(h => h.month === selectedMonth)?.year
-                            : new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())
+                            : isProcessingLate
+                                ? (() => {
+                                    const d = new Date(); d.setMonth(d.getMonth() - 1);
+                                    return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase()) + " (Retroativo)";
+                                })()
+                                : new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())
                         }
                     </div>
                 </div>
