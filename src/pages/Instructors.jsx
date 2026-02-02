@@ -446,7 +446,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.1</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
