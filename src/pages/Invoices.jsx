@@ -105,7 +105,12 @@ const Invoices = () => {
     await db.init();
     try {
       const invs = await db.invoices.getAll();
-      setInvoices(Array.isArray(invs) ? invs : []);
+      // Parse items if it's a JSON string
+      const parsed = (Array.isArray(invs) ? invs : []).map(inv => ({
+        ...inv,
+        items: typeof inv.items === 'string' ? (inv.items ? JSON.parse(inv.items) : []) : (inv.items || [])
+      }));
+      setInvoices(parsed);
     } catch (e) { console.error("Erro loading invoices", e); }
   };
 
