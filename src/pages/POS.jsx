@@ -912,56 +912,65 @@ const POS = () => {
 
             {/* Modal de Impressão / Recibo - VISIBLE & ROBUST */}
             {printingInvoice && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-                    background: 'rgba(0,0,0,0.9)', zIndex: 999999,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    padding: '10px'
-                }}>
-                    <div style={{ background: 'white', padding: '10px', borderRadius: '8px', marginBottom: '20px', maxHeight: '70vh', overflow-y: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-                         {/* Wrapper for PDF generation */}
-                         <div id="pos-receipt-content" style={{ width: '80mm', background: 'white', margin: '0 auto' }}>
-                             <InvoiceTemplate invoice={printingInvoice} isThermal={true} />
-                         </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap justify-center gap-4">
-                        <button 
-                            className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
-                            onClick={() => setPrintingInvoice(null)}
-                        >
-                            <X size={20} /> Fechar
-                        </button>
-                        
-                        <button 
-                            className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
-                            onClick={() => {
-                                const element = document.getElementById('pos-receipt-content');
-                                // Configuração robusta para html2pdf
-                                const opt = { 
-                                    margin: [0, 0, 0, 0], 
-                                    filename: `Recibo_${printingInvoice.id}.pdf`, 
-                                    image: { type: 'jpeg', quality: 0.98 },
-                                    html2canvas: { scale: 2, useCORS: true, logging: false },
-                                    jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' } 
-                                };
-                                html2pdf().set(opt).from(element).save();
-                            }}
-                        >
-                             <Download size={20} /> Baixar PDF
-                        </button>
+    <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        background: 'rgba(0,0,0,0.9)', zIndex: 999999,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '10px'
+    }}>
+        <div style={{ 
+            background: 'white', 
+            padding: '10px', 
+            borderRadius: '8px', 
+            marginBottom: '20px', 
+            maxHeight: '70vh', 
+            overflowY: 'auto', 
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)' 
+        }}>
+            {/* Wrapper for PDF generation */}
+            <div id="pos-receipt-content" style={{ width: '80mm', background: 'white', margin: '0 auto' }}>
+                <InvoiceTemplate invoice={printingInvoice} isThermal={true} />
+            </div>
+        </div>
+        
+        <div className="flex flex-wrap justify-center gap-4">
+            <button 
+                className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
+                onClick={() => setPrintingInvoice(null)}
+            >
+                <X size={20} /> Fechar
+            </button>
+            
+            <button 
+                className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
+                onClick={() => {
+                    const element = document.getElementById('pos-receipt-content');
+                    // Configuração robusta para html2pdf
+                    const opt = { 
+                        margin: [0, 0, 0, 0], 
+                        filename: `Recibo_${printingInvoice.id}.pdf`, 
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' } 
+                    };
+                    html2pdf().set(opt).from(element).save();
+                }}
+            >
+                <Download size={20} /> Baixar PDF
+            </button>
 
-                        <button 
-                            className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
-                            onClick={() => window.print()}
-                        >
-                            <Printer size={20} /> Imprimir (Browser)
-                        </button>
-                    </div>
-                    <p className="text-white mt-4 text-sm opacity-70 text-center">Se o download automático não iniciou, use os botões acima.</p>
-                </div>
-    )
-}
+            <button 
+                className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
+                onClick={() => window.print()}
+            >
+                <Printer size={20} /> Imprimir (Browser)
+            </button>
+        </div>
+        <p className="text-white mt-4 text-sm opacity-70 text-center">
+            Se o download automático não iniciou, use os botões acima.
+        </p>
+    </div>
+)}
 
 <style>{`
                 .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
