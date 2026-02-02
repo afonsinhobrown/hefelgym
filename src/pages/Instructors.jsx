@@ -164,8 +164,22 @@ const Instructors = () => {
                 return;
             }
 
+            // 🔒 REGRA: Não pode guardar mês corrente antes do dia 20
+            const currentDay = currentDate.getDate();
+            if (monthInput === currentMonthKey && currentDay < 20) {
+                alert(
+                    `🔒 BLOQUEIO DE SEGURANÇA\n\n` +
+                    `A folha do mês corrente só pode ser guardada a partir do dia 20.\n\n` +
+                    `Hoje: Dia ${currentDay}\n` +
+                    `Disponível em: Dia 20\n\n` +
+                    `💡 Podes guardar folhas de meses anteriores.`
+                );
+                return;
+            }
+
             const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
             const monthName = monthNames[monthNum - 1];
+
 
             // Check if already exists
             const existing = payrollHistory.find(h => h.month === monthInput);

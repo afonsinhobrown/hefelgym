@@ -150,7 +150,6 @@ export const db = {
                 client_id: clientId || null,
                 client_name: clientName,
                 amount: total,
-                total: total,
                 status: paymentStatus,
                 items: JSON.stringify(cleanItems), // SERIALIZE as JSON string for Supabase
                 date: new Date().toISOString(),
