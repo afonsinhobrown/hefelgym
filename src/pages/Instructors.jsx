@@ -130,24 +130,7 @@ const Instructors = () => {
     // ... (rest of functions)
 
     // PDF Export Logic Update (Search for similar block in your file)
-    const exportToPDF = () => {
-        const element = document.createElement('div');
-        // ...
-        // Inside HTML Template:
-        // REMOVED 'Faltas' row from Summary Box
-        /*
-           ...
-           <tr>
-               <td style="padding: 5px 0;">Desconto INSS:</td>
-               <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalINSSWorker.toLocaleString()} MT</td>
-           </tr>
-           <tr>
-               <td style="padding: 5px 0;">IRPS:</td>
-               <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalIRPS.toLocaleString()} MT</td>
-           </tr>
-           ...
-        */
-    };
+    // [Lógica PDF removida para evitar duplicação - Usar generatePayrollPDF mais abaixo]
 
     // Note: Since I am replacing a large chunk of rendering logic, I will target the Dashboard rendering specifically for the visual updates.
     // The previous replace_file_content limitation requires allowMultiple or smaller chunks. 
@@ -392,7 +375,7 @@ const Instructors = () => {
         loadPayrollHistory();
     }, []);
 
-    const exportToPDF = async () => {
+    const generatePayrollPDF = async () => {
         try {
             // Determinar a data correta para o Título do PDF
             let pdfDate;
@@ -614,7 +597,7 @@ const Instructors = () => {
                     }}
                 />
                 <button
-                    onClick={exportToPDF}
+                    onClick={generatePayrollPDF}
                     disabled={!isViewingHistory && !isProcessingLate && new Date().getDate() < 20}
                     style={{
                         background: isProcessingLate ? '#d97706' : (!isViewingHistory && new Date().getDate() < 20 ? '#4b5563' : '#dc2626'),
