@@ -558,10 +558,10 @@ const POS = () => {
                                             console.log("Forçando reimpressão:", lastSale);
                                             setPrintingInvoice(lastSale);
                                         }}
-                                        className="text-xs bg-yellow-600 px-3 py-1 rounded-full text-white font-bold hover:bg-yellow-700 ml-2 animate-pulse flex items-center gap-1 shadow-lg border border-yellow-400"
-                                        title="Clique aqui se o recibo não apareceu automaticamente"
+                                        className="text-xs bg-gray-800 text-gray-400 border border-gray-700 px-3 py-1 rounded-full hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all flex items-center gap-1 ml-2"
+                                        title="Reimprimir recibo da última venda"
                                     >
-                                        <Printer size={14} /> Reimprimir Último
+                                        <Printer size={12} /> <span className="hidden sm:inline">Reimprimir Última</span>
                                     </button>
                                 )}
                             </div>
@@ -658,7 +658,7 @@ const POS = () => {
                 {/* Right Side: Cart */}
                 <div className="pos-cart">
                     <div className="cart-header">
-                        <h3>Carrinho</h3>
+                        <h3>Carrinho Atual</h3>
 
                         {/* SELECTOR DE CLIENTE PESQUISÁVEL - CORRIGIDO */}
                         <div className="client-search-wrapper mb-3" ref={clientSearchRef}>
@@ -857,24 +857,7 @@ const POS = () => {
                             <span className="total-amount">{calculateTotal().toLocaleString()} MT</span>
                         </div>
 
-                        {/* BOTÃO DE TESTE TEMPORÁRIO - REMOVER DEPOIS */}
-                        <button
-                            onClick={() => {
-                                const testInvoice = {
-                                    id: "TEST123",
-                                    date: new Date().toISOString(),
-                                    items: [{ name: "Produto Teste", price: 1000, qty: 1 }],
-                                    total: 1000,
-                                    clientName: "Cliente Teste",
-                                    client: { name: "Cliente Teste", phone: "841234567" }
-                                };
-                                console.log("Testando recibo:", testInvoice);
-                                setPrintingInvoice(testInvoice);
-                            }}
-                            className="btn btn-yellow mb-2 text-sm w-full"
-                        >
-                            🧪 Testar Recibo (Debug)
-                        </button>
+
 
                         {isPaymentStep ? (
                             <form onSubmit={confirmPayment} className="payment-form animate-fade-in">
