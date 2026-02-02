@@ -389,14 +389,10 @@ const POS = () => {
             setLastSale(fullInvoice);
             setGeneratedInvoice(fullInvoice);
 
-            // Atualizar o recibo com o ID real do banco de dados
-            if (printingInvoice && invoice.id) {
-                console.log("Atualizando recibo com ID real:", invoice.id);
-                setPrintingInvoice(prev => ({
-                    ...prev,
-                    id: invoice.id
-                }));
-            }
+            // Atualizar/Definir o documento para impressão com os dados REAIS do banco
+            // Isto garante que Faturas (Pagar Depois) abram o modal, e Recibos (Pagos) atualizem o ID
+            console.log("Definindo documento final para impressão:", fullInvoice);
+            setPrintingInvoice(fullInvoice);
 
             setCart([]);
             setIsPaymentStep(false);
