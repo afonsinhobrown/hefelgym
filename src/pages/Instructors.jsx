@@ -597,24 +597,14 @@ const Instructors = () => {
                                         <td style={{ ...tdStyle, fontSize: '12px', color: '#94a3b8' }}>
                                             {inst.phone || '---'}
                                         </td>
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace' }}>
-                                            {(inst.base_salary || 0).toLocaleString()}
-                                        </td>
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', color: '#94a3b8' }}>
-                                            {(inst.extra_hours || 0).toLocaleString()}
-                                        </td>
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', color: '#94a3b8' }}>
-                                            {(inst.bonus || 0).toLocaleString()}
-                                        </td>
+                                        <EditableCell instructor={inst} field="base_salary" value={inst.base_salary} />
+                                        <EditableCell instructor={inst} field="extra_hours" value={inst.extra_hours} color="#94a3b8" />
+                                        <EditableCell instructor={inst} field="bonus" value={inst.bonus} color="#94a3b8" />
                                         <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
                                             {bruto.toLocaleString()}
                                         </td>
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>
-                                            {(inst.inss_discount || 0).toLocaleString()}
-                                        </td>
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>
-                                            {(inst.irt_discount || 0).toLocaleString()}
-                                        </td>
+                                        <EditableCell instructor={inst} field="inss_discount" value={inst.inss_discount} color="#ef4444" />
+                                        <EditableCell instructor={inst} field="irt_discount" value={inst.irt_discount} color="#ef4444" />
                                         <td style={{ ...tdStyle, textAlign: 'right' }}>
                                             <div style={{ background: '#065f46', color: '#10b981', padding: '6px 12px', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 'bold', display: 'inline-block', border: '1px solid #10b981' }}>
                                                 {(inst.net_salary || 0).toLocaleString()}
