@@ -922,6 +922,15 @@ const POS = () => {
                 </div>
             </div>
 
+            {/* Hidden Print Container */}
+            <div id="pos-print-container" style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -1 }}>
+                {printingInvoice && (
+                    <div style={{ width: '80mm', background: 'white', color: 'black', padding: '10px' }}>
+                        <InvoiceTemplate invoice={printingInvoice} />
+                    </div>
+                )}
+            </div>
+
             <style>{`
                 .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
                 .pos-container { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; height: 100%; padding-bottom: 1rem; }
