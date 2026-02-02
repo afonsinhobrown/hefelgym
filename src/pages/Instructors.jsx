@@ -89,19 +89,58 @@ const Instructors = () => {
 
     const savePayrollSnapshot = async () => {
         try {
-            const monthKey = selectedMonth; // 2026-01
-            const [year, month] = monthKey.split('-');
+            // Prompt user to select which month to save
+            const currentDate = new Date();
+            const currentMonthKey = currentDate.toISOString().slice(0, 7); // 2026-02
+
+            const monthInput = prompt(
+                `📅 Guardar folha para qual mês?\n\n` +
+                `Formato: AAAA-MM (ex: 2026-01 para Janeiro/2026)\n` +
+                `Mês atual: ${currentMonthKey}\n\n` +
+                `💡 Dica: Use isto para guardar meses anteriores que esqueceste!`,
+                currentMonthKey
+            );
+
+            if (!monthInput) return; // User cancelled
+
+            // Validate format
+            if (!/^\d{4}-\d{2}$/.test(monthInput)) {
+                alert('❌ Formato inválido! Use AAAA-MM (ex: 2026-01)');
+                return;
+            }
+
+            const [year, month] = monthInput.split('-');
+            const monthNum = parseInt(month);
+
+            if (monthNum < 1 || monthNum > 12) {
+                alert('❌ Mês inválido! Use 01 a 12');
+                return;
+            }
+
             const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-            const monthName = monthNames[parseInt(month) - 1];
+            const monthName = monthNames[monthNum - 1];
+
+            // Check if already exists
+            const existing = payrollHistory.find(h => h.month === monthInput);
+            if (existing) {
+                if (!confirm(`⚠️ Já existe uma folha guardada para ${monthName}/${year}.\n\nSubstituir?`)) {
+                    return;
+                }
+            }
+
+            // Confirm save
+            if (!confirm(`💾 Confirmar guardar folha de ${monthName}/${year}?`)) {
+                return;
+            }
 
             const totalBruto = filteredInstructors.reduce((sum, i) => sum + ((i.base_salary || 0) + (i.extra_hours || 0) + (i.bonus || 0)), 0);
             const totalDescontos = filteredInstructors.reduce((sum, i) => sum + (i.inss_discount || 0) + (i.absences_discount || 0) + (i.irt_discount || 0) + (i.other_deductions || 0), 0);
             const totalLiquido = totalBruto - totalDescontos;
 
             const snapshot = {
-                id: `payroll_${monthKey}_${Date.now()}`,
+                id: `payroll_${monthInput}_${Date.now()}`,
                 gym_id: 'hefel_gym_v1',
-                month: monthKey,
+                month: monthInput,
                 year: parseInt(year),
                 month_name: monthName,
                 snapshot_date: new Date().toISOString(),
