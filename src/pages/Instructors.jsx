@@ -114,13 +114,48 @@ const Instructors = () => {
         );
     };
 
+    const totalBase = instructors.filter(isInternal).reduce((sum, i) => sum + (i.base_salary || 0), 0);
+    const totalExtra = instructors.filter(isInternal).reduce((sum, i) => sum + (i.extra_hours || 0), 0);
+    const totalBonus = instructors.filter(isInternal).reduce((sum, i) => sum + (i.bonus || 0), 0);
+    const totalAcrescimos = instructors.filter(isInternal).reduce((sum, i) => sum + (i.additional_earnings || 0), 0);
+    const totalIRPS = instructors.filter(isInternal).reduce((sum, i) => sum + (i.irt_discount || 0), 0);
+    const totalINSS_Worker = instructors.filter(isInternal).reduce((sum, i) => sum + (i.inss_discount || 0), 0);
     const totalLiquido = instructors.filter(isInternal).reduce((sum, i) => sum + (i.net_salary || 0), 0);
-    const totalINSS = instructors.filter(isInternal).reduce((sum, i) => sum + (i.inss_discount || 0) + (i.inss_company || 0), 0);
 
     const handleEdit = (instructor) => {
         setEditingInstructor(instructor);
         setFormData({ ...instructor });
     };
+
+    // ... (rest of functions)
+
+    // PDF Export Logic Update (Search for similar block in your file)
+    const exportToPDF = () => {
+        const element = document.createElement('div');
+        // ...
+        // Inside HTML Template:
+        // REMOVED 'Faltas' row from Summary Box
+        /*
+           ...
+           <tr>
+               <td style="padding: 5px 0;">Desconto INSS:</td>
+               <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalINSSWorker.toLocaleString()} MT</td>
+           </tr>
+           <tr>
+               <td style="padding: 5px 0;">IRPS:</td>
+               <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalIRPS.toLocaleString()} MT</td>
+           </tr>
+           ...
+        */
+    };
+
+    // Note: Since I am replacing a large chunk of rendering logic, I will target the Dashboard rendering specifically for the visual updates.
+    // The previous replace_file_content limitation requires allowMultiple or smaller chunks. 
+    // I will split this into: 1. Calculation Logic (inserted above) 2. Dashboard UI 3. PDF function
+
+    // Actually, to trigger the tool correctly, I must target existing lines.
+    // I will replace the dashboard section first.
+
 
     const calculateTotals = (data) => {
         const bruto = (data.base_salary || 0) + (data.extra_hours || 0) + (data.bonus || 0) + (data.additional_earnings || 0);
@@ -396,10 +431,7 @@ const Instructors = () => {
                                 <td style="padding: 5px 0;">Desconto INSS Trabalhador:</td>
                                 <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalINSSWorker.toLocaleString()} MT</td>
                             </tr>
-                            <tr>
-                                <td style="padding: 5px 0;">Faltas:</td>
-                                <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalFaltas.toLocaleString()} MT</td>
-                            </tr>
+
                             <tr>
                                 <td style="padding: 5px 0;">IRPS:</td>
                                 <td style="text-align: right; padding: 5px 0; color: #dc2626;">${totalIRPS.toLocaleString()} MT</td>
@@ -506,7 +538,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.8</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.9</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -769,22 +801,38 @@ const Instructors = () => {
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
-                        <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
-                                Total Líquido
-                            </div>
+                    {/* DASHBOARD DETALHADO */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '30px' }}>
+                        {/* Cartões Principais */}
+                        <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>Total Líquido a Pagar</div>
                             <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#10b981' }}>
                                 {totalLiquido.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
                             </div>
                         </div>
-                        <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
-                                Encargos INSS
-                            </div>
+                        <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>Total INSS (3% Trabalhador)</div>
                             <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ef4444' }}>
-                                {totalINSS.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
+                                {totalINSS_Worker.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
                             </div>
+                        </div>
+
+                        {/* Detalhe Componentes Salariais */}
+                        <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>SALÁRIO BASE</div>
+                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginTop: '5px' }}>{totalBase.toLocaleString()} MT</div>
+                        </div>
+                        <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>HORAS EXTRA</div>
+                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginTop: '5px' }}>{totalExtra.toLocaleString()} MT</div>
+                        </div>
+                        <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>BÓNUS + ACRÉSCIMOS</div>
+                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24', marginTop: '5px' }}>{(totalBonus + totalAcrescimos).toLocaleString()} MT</div>
+                        </div>
+                        <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>TOTAL IRPS</div>
+                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ef4444', marginTop: '5px' }}>{totalIRPS.toLocaleString()} MT</div>
                         </div>
                     </div>
 

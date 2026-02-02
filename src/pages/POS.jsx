@@ -128,51 +128,46 @@ const POS = () => {
             const generatePDF = async () => {
                 setIsSending(true);
                 try {
-                    await new Promise(resolve => setTimeout(resolve, 800));
+                    // Esperar renderização do modal
+                    await new Promise(resolve => setTimeout(resolve, 1000));
 
-                    const originalElement = document.getElementById('pos-print-container');
-                    if (!originalElement) throw new Error('Elemento de impressão não encontrado');
+                    const element = document.getElementById('invoice-content');
+                    if (!element) throw new Error('Template do recibo não renderizou a tempo.');
 
-                    const clone = originalElement.cloneNode(true);
-                    clone.style.position = 'fixed';
-                    clone.style.top = '0';
-                    clone.style.left = '0';
-                    clone.style.zIndex = '99999';
-                    clone.style.background = 'white';
-                    clone.style.width = '80mm';
-                    clone.style.display = 'block';
-                    clone.style.visibility = 'visible';
-                    document.body.appendChild(clone);
-
-                    const canvas = await html2canvas(clone, {
+                    const canvas = await html2canvas(element, {
                         scale: 2,
-                        logging: true,
                         useCORS: true,
                         backgroundColor: '#ffffff'
                     });
 
-                    document.body.removeChild(clone);
-
                     const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', [80, 297]);
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfWidth = 80;
                     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
+                    // PDF com altura dinâmica para rolo térmico
+                    const pdf = new jsPDF('p', 'mm', [pdfWidth, Math.max(pdfHeight, 20)]);
                     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
                     const pdfBase64 = pdf.output('datauristring');
 
-                    pdf.save(`Recibo_${printingInvoice.id}.pdf`);
-                    console.log("PDF Gerado. Tamanho: " + pdfBase64.length);
-                    await sendToBot(printingInvoice, pdfBase64);
+                    pdf.save(`Recibo_${printingInvoice.id || 'NOVO'}.pdf`);
+
+                    // Enviar para WhatsApp (se configurado)
+                    try {
+                        await sendToBot(printingInvoice, pdfBase64);
+                    } catch (e) {
+                        console.warn("Falha ao enviar bot:", e);
+                    }
+
                 } catch (err) {
                     console.error("ERRO CRITICO AO GERAR PDF:", err);
-                    alert("Erro PDF: " + err.message);
+                    alert("Erro ao gerar recibo: " + err.message);
                 } finally {
                     setPrintingInvoice(null);
                     setIsSending(false);
                 }
             };
+
             generatePDF();
         }
     }, [printingInvoice]);
@@ -923,13 +918,26 @@ const POS = () => {
             </div>
 
             {/* Hidden Print Container */}
-            <div id="pos-print-container" style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -1 }}>
-                {printingInvoice && (
-                    <div style={{ width: '80mm', background: 'white', color: 'black', padding: '10px' }}>
+            {printingInvoice && (
+                <div id="pos-print-container" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    background: 'rgba(0,0,0,0.85)',
+                    zIndex: 999999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <div id="invoice-content" style={{ background: 'white', padding: '0', width: '80mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
                         <InvoiceTemplate invoice={printingInvoice} />
                     </div>
-                )}
-            </div>
+                    <div style={{ color: 'white', marginTop: '20px', fontSize: '18px', fontWeight: 'bold' }}>🖨️ A Gerar Recibo...</div>
+                </div>
+            )}
 
             <style>{`
                 .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
