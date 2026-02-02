@@ -128,39 +128,126 @@ const POS = () => {
             const generatePDF = async () => {
                 setIsSending(true);
                 try {
-                    // Esperar renderização do modal
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Simular delay visual curto para feedback
+                    await new Promise(r => setTimeout(r, 500));
 
-                    const element = document.getElementById('invoice-content');
-                    if (!element) throw new Error('Template do recibo não renderizou a tempo.');
+                    // Dados da Empresa (Safe Read)
+                    const company = JSON.parse(localStorage.getItem('hefel_company_v3') || '{}');
 
-                    const canvas = await html2canvas(element, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff'
+                    // Altura dinâmica estimada: base + itens
+                    const estimatedHeight = 120 + (printingInvoice.items?.length || 0) * 10;
+
+                    // Inicializar jsPDF (Direct Draw Mode - 100% Fiável)
+                    const doc = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: [80, estimatedHeight]
                     });
 
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdfWidth = 80;
-                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    // Configurações de Layout
+                    let y = 8;
+                    const left = 4;
+                    const right = 76;
+                    const centerX = 40;
 
-                    // PDF com altura dinâmica para rolo térmico
-                    const pdf = new jsPDF('p', 'mm', [pdfWidth, Math.max(pdfHeight, 20)]);
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    // Helpers Gráficos
+                    const centerText = (txt, yPos, size = 9, bold = false) => {
+                        doc.setFont("helvetica", bold ? "bold" : "normal");
+                        doc.setFontSize(size);
+                        doc.text(String(txt), centerX, yPos, { align: "center" });
+                    };
 
-                    const pdfBase64 = pdf.output('datauristring');
+                    const drawLine = (yPos) => {
+                        doc.setLineWidth(0.1);
+                        doc.line(left, yPos, right, yPos);
+                    };
 
-                    pdf.save(`Recibo_${printingInvoice.id || 'NOVO'}.pdf`);
+                    // === CABEÇALHO ===
+                    centerText((company.name || "HEFEL GYM").toUpperCase(), y, 12, true); y += 5;
+                    centerText(company.address || "Maputo, Moçambique", y, 8); y += 4;
+                    centerText(`NUIT: ${company.nuit || "N/A"}`, y, 8); y += 4;
+                    centerText(`Tel: ${company.contacts?.[0]?.value || "N/A"}`, y, 8); y += 6;
 
-                    // Enviar para WhatsApp (se configurado)
-                    try {
-                        await sendToBot(printingInvoice, pdfBase64);
-                    } catch (e) {
-                        console.warn("Falha ao enviar bot:", e);
+                    drawLine(y); y += 4;
+
+                    // === INFO RECIBO ===
+                    centerText(printingInvoice.status === 'pago' ? "RECIBO DE PAGAMENTO" : "FATURA PENDENTE", y, 10, true); y += 5;
+
+                    doc.setFontSize(8);
+                    doc.setFont("helvetica", "normal");
+
+                    const pDate = new Date();
+                    doc.text(`Data: ${pDate.toLocaleDateString('pt-PT')} ${pDate.toLocaleTimeString().slice(0, 5)}`, left, y); y += 4;
+                    doc.text(`Doc #: ${printingInvoice.id || '---'} (v2.9D)`, left, y); y += 4;
+                    doc.text(`Cliente: ${(printingInvoice.client?.name || "Consumidor Final").substring(0, 25)}`, left, y); y += 5;
+
+                    drawLine(y); y += 4;
+
+                    // === ITENS ===
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Qtd  Item", left, y);
+                    doc.text("Total", right, y, { align: "right" });
+                    y += 4;
+
+                    doc.setFont("helvetica", "normal");
+
+                    let total = 0;
+                    (printingInvoice.items || []).forEach(item => {
+                        const qty = item.qty || item.quantity || 1;
+                        const price = item.price || 0;
+                        const itemTotal = qty * price;
+                        total += itemTotal;
+
+                        const desc = item.description || item.name || "Item";
+
+                        // Item Line
+                        doc.text(`${qty}x  ${desc.substring(0, 22)}`, left, y);
+                        doc.text(itemTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
+                        y += 4;
+                    });
+
+                    y += 2;
+                    drawLine(y); y += 4;
+
+                    // === TOTAIS ===
+                    // IVA simples (se aplicável ao total)
+                    const ivaRate = company.ivaRate ? Number(company.ivaRate) : 0;
+                    const ivaVal = total * (ivaRate / 100);
+                    const grandTotal = total + ivaVal;
+
+                    doc.setFontSize(9);
+                    doc.text("Subtotal:", left, y);
+                    doc.text(total.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
+                    y += 4;
+
+                    if (ivaVal > 0) {
+                        doc.text(`IVA (${ivaRate}%):`, left, y);
+                        doc.text(ivaVal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
+                        y += 4;
                     }
 
+                    y += 1;
+                    doc.setFontSize(12);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("TOTAL:", left, y);
+                    doc.text(grandTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }) + " MT", right, y, { align: "right" });
+                    y += 8;
+
+                    // === RODAPÉ ===
+                    centerText("Obrigado pela preferência!", y, 9, true); y += 4;
+                    centerText("Processado por Hefel Gym System", y, 7);
+
+                    // Salvar ficheiro
+                    doc.save(`Recibo_${printingInvoice.id || Date.now()}.pdf`);
+
+                    // Enviar para Bot
+                    const pdfBase64 = doc.output('datauristring');
+                    try {
+                        await sendToBot(printingInvoice, pdfBase64);
+                    } catch (e) { console.warn(e); }
+
                 } catch (err) {
-                    console.error("ERRO CRITICO AO GERAR PDF:", err);
+                    console.error("ERRO CRITICO PDF:", err);
                     alert("Erro ao gerar recibo: " + err.message);
                 } finally {
                     setPrintingInvoice(null);
@@ -917,25 +1004,24 @@ const POS = () => {
                 </div>
             </div>
 
-            {/* Hidden Print Container */}
+            {/* Loading Overlay for Direct PDF Generation (Lightweight) */}
             {printingInvoice && (
-                <div id="pos-print-container" style={{
+                <div style={{
                     position: 'fixed',
                     top: 0,
                     left: 0,
                     width: '100vw',
                     height: '100vh',
                     background: 'rgba(0,0,0,0.85)',
-                    zIndex: 999999,
+                    zIndex: 9999999,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    color: 'white'
                 }}>
-                    <div id="invoice-content" style={{ background: 'white', padding: '0', width: '80mm', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
-                        <InvoiceTemplate invoice={printingInvoice} />
-                    </div>
-                    <div style={{ color: 'white', marginTop: '20px', fontSize: '18px', fontWeight: 'bold' }}>🖨️ A Gerar Recibo...</div>
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mb-4"></div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>A imprimir recibo...</div>
                 </div>
             )}
 
