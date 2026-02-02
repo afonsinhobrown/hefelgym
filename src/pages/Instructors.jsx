@@ -457,7 +457,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.3</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.4</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -653,6 +653,54 @@ const Instructors = () => {
                             </button>
                         </div>
                     )}
+
+                    {/* BANNER DE VERIFICAÇÃO RECORRENTE (NOVIDADE) */}
+                    <div style={{ background: '#172554', borderLeft: '4px solid #3b82f6', color: '#bfdbfe', padding: '15px', borderRadius: '4px', marginBottom: '20px', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <strong>ℹ️ VERIFICAÇÃO MENSAL NECESSÁRIA</strong>
+                            <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>
+                                Os subsídios e descontos foram importados da folha anterior.
+                                <br />
+                                <strong>Por favor, verifique se estão corretos para o mês atual antes de fechar a folha.</strong>
+                            </p>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (confirm('♻️ TEM A CERTEZA?\n\nIsto irá ZERAR as faltas de todos os colaboradores para iniciar um novo mês.\nOs salários base e bónus mantêm-se.\n\nContinuar?')) {
+                                    try {
+                                        // Zera faltas de todos na memória e na BD
+                                        const updatedInstructors = await Promise.all(instructors.map(async (inst) => {
+                                            const newInst = { ...inst, absences_discount: 0 };
+                                            // Recalcular líquido
+                                            const netByCalc = (newInst.base_salary || 0) + (newInst.extra_hours || 0) + (newInst.bonus || 0)
+                                                - (newInst.inss_discount || 0) - (newInst.irt_discount || 0) - (newInst.other_deductions || 0) - 0; // absences=0
+                                            newInst.net_salary = netByCalc;
+
+                                            await db.instructors.update(newInst.id, newInst);
+                                            return newInst;
+                                        }));
+                                        setInstructors(updatedInstructors);
+                                        alert('✅ Novo mês iniciado! Faltas zeradas.\nPor favor valide os restantes valores.');
+                                    } catch (err) {
+                                        alert('Erro ao reiniciar mês: ' + err.message);
+                                    }
+                                }
+                            }}
+                            style={{
+                                background: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap',
+                                marginLeft: '15px'
+                            }}
+                        >
+                            ♻️ Iniciar Novo Mês (Zerar Faltas)
+                        </button>
+                    </div>
 
                     {/* CONTEÚDO DA FOLHA (TOTAIS E TABELA) */}
 
