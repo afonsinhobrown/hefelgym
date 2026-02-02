@@ -157,21 +157,47 @@ const Instructors = () => {
     // I will replace the dashboard section first.
 
 
+    // TABELA IRPS 2024 (Lei n.º 20/2013)
+    const IRPS_TABLE = [
+        { min: 0, max: 20249.99, coef: 0, fixed: [0, 0, 0, 0, 0] },
+        { min: 20250, max: 20749.99, coef: 0.10, fixed: [0, 0, 0, 0, 0] },
+        { min: 20750, max: 20999.99, coef: 0.10, fixed: [50, 0, 0, 0, 0] },
+        { min: 21000, max: 21249.99, coef: 0.10, fixed: [75, 25, 0, 0, 0] },
+        { min: 21250, max: 21749.99, coef: 0.10, fixed: [100, 50, 25, 0, 0] },
+        { min: 21750, max: 22249.99, coef: 0.10, fixed: [130, 100, 75, 50, 0] },
+        { min: 22250, max: 32749.99, coef: 0.15, fixed: [200, 150, 125, 100, 50] },
+        { min: 32750, max: 60749.99, coef: 0.20, fixed: [1775, 1725, 1700, 1675, 1625] },
+        { min: 60750, max: 144749.99, coef: 0.25, fixed: [7375, 7325, 7300, 7275, 7225] },
+        { min: 144750, max: Infinity, coef: 0.32, fixed: [28375, 28325, 28300, 28275, 28225] },
+    ];
+
+    const calculateIRPS = (grossSalary, dependents = 0) => {
+        const bracket = IRPS_TABLE.find(b => grossSalary >= b.min && grossSalary <= b.max) || IRPS_TABLE[IRPS_TABLE.length - 1];
+        const depIndex = Math.min(Math.max(0, parseInt(dependents) || 0), 4);
+        const fixedVal = bracket.fixed[depIndex];
+        const excess = grossSalary - bracket.min;
+        return Math.floor(fixedVal + (excess * bracket.coef));
+    };
+
     const calculateTotals = (data) => {
         const bruto = (data.base_salary || 0) + (data.extra_hours || 0) + (data.bonus || 0) + (data.additional_earnings || 0);
 
-        // Calcular INSS baseado na percentagem se definida
+        // INSS (Dinâmico)
         let inssDiscount = data.inss_discount || 0;
         if (typeof data.inss_percent === 'number' && data.inss_percent >= 0) {
             inssDiscount = Math.round(bruto * (data.inss_percent / 100));
         }
 
-        const totalDescontos = inssDiscount + (data.irt_discount || 0) + (data.absences_discount || 0) + (data.other_deductions || 0);
+        // IRPS (Automático)
+        const irtDiscount = calculateIRPS(bruto, data.dependents || 0);
+
+        const totalDescontos = inssDiscount + irtDiscount + (data.absences_discount || 0) + (data.other_deductions || 0);
         const netSalary = bruto - totalDescontos;
 
         return {
             ...data,
             inss_discount: inssDiscount,
+            irt_discount: irtDiscount,
             net_salary: netSalary
         };
     };
@@ -1042,18 +1068,22 @@ const Instructors = () => {
                             {/* Descontos */}
                             <div style={{ marginBottom: '30px' }}>
                                 <h4 style={{ fontSize: '14px', color: '#ef4444', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 'bold' }}>📉 Descontos e Impostos</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', color: '#ef4444', marginBottom: '6px', fontWeight: 'bold' }}>% INSS</label>
                                         <input type="number" step="0.1" value={formData.inss_percent !== undefined ? formData.inss_percent : 3} onChange={(e) => updateField('inss_percent', parseFloat(e.target.value) || 0)} style={{ ...inputStyle, borderColor: '#ef4444' }} />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Valor INSS (K)</label>
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Valor INSS (Auto)</label>
                                         <input type="number" value={formData.inss_discount || 0} readOnly style={{ ...inputStyle, background: '#334155', cursor: 'not-allowed', color: '#cbd5e1' }} />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>IRPS (N)</label>
-                                        <input type="number" value={formData.irt_discount || 0} onChange={(e) => updateField('irt_discount', parseFloat(e.target.value) || 0)} style={inputStyle} />
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#3b82f6', marginBottom: '6px', fontWeight: 'bold' }}>Nº Dependentes (IRPS)</label>
+                                        <input type="number" min="0" max="10" value={formData.dependents || 0} onChange={(e) => updateField('dependents', parseInt(e.target.value) || 0)} style={{ ...inputStyle, borderColor: '#3b82f6' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>IRPS (Auto Tabela 2024)</label>
+                                        <input type="number" value={formData.irt_discount || 0} readOnly style={{ ...inputStyle, background: '#334155', cursor: 'not-allowed', color: '#cbd5e1' }} />
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Faltas</label>
