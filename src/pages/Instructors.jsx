@@ -13,6 +13,8 @@ const Instructors = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // 2026-01
     const [payrollHistory, setPayrollHistory] = useState([]);
     const [isViewingHistory, setIsViewingHistory] = useState(false);
+    const [editingCell, setEditingCell] = useState(null); // { instructorId, field }
+    const [tempValue, setTempValue] = useState('');
 
     const loadData = async () => {
         try {
@@ -86,6 +88,51 @@ const Instructors = () => {
     const updateField = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
+
+    const handleCellClick = (instructor, field) => {
+        if (isViewingHistory) return; // No editing in history mode
+        setEditingCell({ instructorId: instructor.id, field });
+        setTempValue(instructor[field] || 0);
+    };
+
+    const handleCellBlur = async () => {
+        if (!editingCell) return;
+
+        try {
+            const instructor = instructors.find(i => i.id === editingCell.instructorId);
+            const newValue = parseFloat(tempValue) || 0;
+
+            // Recalculate net salary
+            const updatedInstructor = { ...instructor, [editingCell.field]: newValue };
+            const netSalary =
+                (updatedInstructor.base_salary || 0) +
+                (updatedInstructor.extra_hours || 0) +
+                (updatedInstructor.bonus || 0) -
+                (updatedInstructor.inss_discount || 0) -
+                (updatedInstructor.irt_discount || 0) -
+                (updatedInstructor.absences_discount || 0) -
+                (updatedInstructor.other_deductions || 0);
+
+            updatedInstructor.net_salary = netSalary;
+
+            await db.instructors.update(updatedInstructor.id, updatedInstructor);
+            await loadData();
+            setEditingCell(null);
+            setTempValue('');
+        } catch (err) {
+            alert('Erro ao guardar: ' + err.message);
+        }
+    };
+
+    const handleCellKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleCellBlur();
+        } else if (e.key === 'Escape') {
+            setEditingCell(null);
+            setTempValue('');
+        }
+    };
+
 
     const savePayrollSnapshot = async () => {
         try {
