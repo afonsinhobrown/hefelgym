@@ -122,14 +122,28 @@ const Instructors = () => {
         setFormData({ ...instructor });
     };
 
+    const calculateTotals = (data) => {
+        const bruto = (data.base_salary || 0) + (data.extra_hours || 0) + (data.bonus || 0) + (data.additional_earnings || 0);
+
+        // Calcular INSS baseado na percentagem se definida
+        let inssDiscount = data.inss_discount || 0;
+        if (typeof data.inss_percent === 'number' && data.inss_percent >= 0) {
+            inssDiscount = Math.round(bruto * (data.inss_percent / 100));
+        }
+
+        const totalDescontos = inssDiscount + (data.irt_discount || 0) + (data.absences_discount || 0) + (data.other_deductions || 0);
+        const netSalary = bruto - totalDescontos;
+
+        return {
+            ...data,
+            inss_discount: inssDiscount,
+            net_salary: netSalary
+        };
+    };
+
     const handleSave = async () => {
         try {
-            // Recalcular salário líquido
-            const netSalary = (formData.base_salary || 0) + (formData.extra_hours || 0) + (formData.bonus || 0)
-                - (formData.inss_discount || 0) - (formData.irt_discount || 0) - (formData.absences_discount || 0) - (formData.other_deductions || 0);
-
-            const updatedData = { ...formData, net_salary: netSalary };
-
+            const updatedData = calculateTotals(formData);
             await db.instructors.update(updatedData.id, updatedData);
             await loadData();
             setEditingInstructor(null);
@@ -145,7 +159,14 @@ const Instructors = () => {
     };
 
     const updateField = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const newData = { ...prev, [field]: value };
+            // Recalcular totais se houver alterações financeiras
+            if (['base_salary', 'extra_hours', 'bonus', 'additional_earnings', 'inss_percent', 'irt_discount', 'absences_discount', 'other_deductions'].includes(field)) {
+                return calculateTotals(newData);
+            }
+            return newData;
+        });
     };
 
     const handleCellClick = (instructor, field) => {
@@ -404,16 +425,18 @@ const Instructors = () => {
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">S. Base</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">H. Extra</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">Bónus</th>
+                                <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">Acresc.</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">Bruto</th>
-                                <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">INSS 3%</th>
+                                <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">INSS</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">Faltas</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">IRPS</th>
+                                <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd;">Outros</th>
                                 <th style="padding: 10px 5px; text-align: right; border: 1px solid #ddd; background: #16a34a;">Líquido</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${filteredInstructors.map((inst, idx) => {
-                const bruto = (inst.base_salary || 0) + (inst.extra_hours || 0) + (inst.bonus || 0);
+                const bruto = (inst.base_salary || 0) + (inst.extra_hours || 0) + (inst.bonus || 0) + (inst.additional_earnings || 0);
                 return `
                                     <tr style="background: ${idx % 2 === 0 ? '#f9fafb' : 'white'};">
                                         <td style="padding: 8px 5px; border: 1px solid #ddd;">${idx + 1}</td>
@@ -422,10 +445,12 @@ const Instructors = () => {
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd;">${(inst.base_salary || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd;">${(inst.extra_hours || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd;">${(inst.bonus || 0).toLocaleString()}</td>
+                                        <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd;">${(inst.additional_earnings || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; font-weight: bold;">${bruto.toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; color: #dc2626;">${(inst.inss_discount || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; color: #dc2626;">${(inst.absences_discount || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; color: #dc2626;">${(inst.irt_discount || 0).toLocaleString()}</td>
+                                        <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; color: #dc2626;">${(inst.other_deductions || 0).toLocaleString()}</td>
                                         <td style="padding: 8px 5px; text-align: right; border: 1px solid #ddd; font-weight: bold; color: #16a34a;">${(inst.net_salary || 0).toLocaleString()}</td>
                                     </tr>
                                 `;
@@ -481,7 +506,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.7</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.8</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -764,79 +789,108 @@ const Instructors = () => {
                     </div>
 
                     <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
-
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1200px' }}>
                                 <thead style={{ background: '#0f172a' }}>
                                     <tr>
-                                        <th style={thStyle}>Nº</th>
-                                        <th style={thStyle}>Colaborador / NUIT</th>
-                                        <th style={thStyle}>Função</th>
-                                        <th style={thStyle}>Contacto</th>
-                                        <th style={{ ...thStyle, textAlign: 'right' }}>S. Base (F)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right' }}>H. Extra (G)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right' }}>Bónus (H)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right' }}>Bruto (J)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>INSS 3% (K)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>IRPS (N)</th>
-                                        <th style={{ ...thStyle, textAlign: 'right', color: '#10b981' }}>Líquido (Q)</th>
-                                        <th style={{ ...thStyle, textAlign: 'center' }}>Ações</th>
+                                        <th rowSpan="2" style={{ ...thStyle, borderRight: '1px solid #334155' }}>Nº</th>
+                                        <th rowSpan="2" style={{ ...thStyle, borderRight: '1px solid #334155' }}>Colaborador / NUIT</th>
+                                        <th rowSpan="2" style={{ ...thStyle, borderRight: '1px solid #334155' }}>Função</th>
+
+                                        <th colSpan="5" style={{ ...thStyle, textAlign: 'center', background: '#064e3b', borderRight: '1px solid #334155', borderBottom: '1px solid #334155' }}>Retribuições</th>
+                                        <th colSpan="5" style={{ ...thStyle, textAlign: 'center', background: '#7f1d1d', borderRight: '1px solid #334155', borderBottom: '1px solid #334155' }}>Descontos Estabelecidos Por Lei</th>
+
+                                        <th rowSpan="2" style={{ ...thStyle, textAlign: 'right', color: '#10b981', borderRight: '1px solid #334155' }}>S. Líquido</th>
+                                        <th rowSpan="2" style={{ ...thStyle, textAlign: 'center' }}>Ações</th>
+                                    </tr>
+                                    <tr>
+                                        {/* Retribuições */}
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#065f46' }}>S. Base</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#065f46' }}>H. Extra</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#065f46' }}>Bónus</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#065f46' }}>Acréscimos</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#047857', fontWeight: 'bold' }}>S. Bruto</th>
+
+                                        {/* Descontos */}
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#991b1b' }}>INSS</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#991b1b' }}>Faltas</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#991b1b' }}>IRPS</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#991b1b' }}>Outros</th>
+                                        <th style={{ ...thStyle, fontSize: '11px', textAlign: 'right', background: '#7f1d1d', fontWeight: 'bold' }}>Total Desc.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredInstructors.map((inst, idx) => {
-                                        const bruto = (inst.base_salary || 0) + (inst.extra_hours || 0) + (inst.bonus || 0) + (inst.additional_earnings || 0);
+                                        const sBase = inst.base_salary || 0;
+                                        const hExtra = inst.extra_hours || 0;
+                                        const bonus = inst.bonus || 0;
+                                        const acrescimos = inst.additional_earnings || 0; // Field for 'Acréscimos'
+
+                                        // Bruto Calculation
+                                        const bruto = sBase + hExtra + bonus + acrescimos;
+
+                                        // INSS Calculation (Dynamic or Static)
+                                        // If inst.inss_percent exists, calculate. Else use existing fixed value or 3% default calculation if fixed is 0?
+                                        // Let's rely on stored value for now, but update UI to show it properly.
+                                        // User said percentage is in details.
+                                        const inssVal = inst.inss_discount || 0;
+
+                                        const faltas = inst.absences_discount || 0;
+                                        const irps = inst.irt_discount || 0;
+                                        const outrosDesc = inst.other_deductions || 0;
+
+                                        const totalDesc = inssVal + faltas + irps + outrosDesc;
+                                        const liquido = bruto - totalDesc; // Recalculate strict based on columns
+
                                         return (
                                             <tr key={inst.id} style={{ borderBottom: '1px solid #334155', background: idx % 2 === 0 ? '#1e293b' : '#0f172a' }}>
-                                                <td style={tdStyle}>
-                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                                <td style={{ ...tdStyle, borderRight: '1px solid #334155' }}>
+                                                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
                                                         {inst.order_index || idx + 1}
                                                     </div>
                                                 </td>
-                                                <td style={tdStyle}>
-                                                    <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>
-                                                        {inst.name}
-                                                    </div>
-                                                    <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
-                                                        {inst.nuit || '---'}
-                                                    </div>
+                                                <td style={{ ...tdStyle, borderRight: '1px solid #334155' }}>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{inst.name}</div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280', fontFamily: 'monospace' }}>{inst.nuit || '---'}</div>
                                                 </td>
-                                                <td style={tdStyle}>
-                                                    <div style={{ background: '#334155', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block' }}>
-                                                        {inst.specialties || inst.role || 'Staff'}
+                                                <td style={{ ...tdStyle, borderRight: '1px solid #334155' }}>
+                                                    <div style={{ background: '#334155', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', display: 'inline-block' }}>
+                                                        {inst.role || 'Staff'}
                                                     </div>
                                                 </td>
-                                                <td style={{ ...tdStyle, fontSize: '12px', color: '#94a3b8' }}>
-                                                    {inst.phone || '---'}
-                                                </td>
-                                                <EditableCell instructor={inst} field="base_salary" value={inst.base_salary} />
-                                                <EditableCell instructor={inst} field="extra_hours" value={inst.extra_hours} color="#94a3b8" />
-                                                <EditableCell instructor={inst} field="bonus" value={inst.bonus} color="#94a3b8" />
-                                                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
+
+                                                {/* Retribuições */}
+                                                <EditableCell instructor={inst} field="base_salary" value={sBase} />
+                                                <EditableCell instructor={inst} field="extra_hours" value={hExtra} color="#94a3b8" />
+                                                <EditableCell instructor={inst} field="bonus" value={bonus} color="#94a3b8" />
+                                                <EditableCell instructor={inst} field="additional_earnings" value={acrescimos} color="#fbbf24" />
+                                                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: '#10b981', background: '#064e3b', borderRight: '1px solid #334155' }}>
                                                     {bruto.toLocaleString()}
                                                 </td>
-                                                <EditableCell instructor={inst} field="inss_discount" value={inst.inss_discount} color="#ef4444" />
-                                                <EditableCell instructor={inst} field="irt_discount" value={inst.irt_discount} color="#ef4444" />
-                                                <td style={{ ...tdStyle, textAlign: 'right' }}>
+
+                                                {/* Descontos */}
+                                                <td style={{ ...tdStyle, textAlign: 'right', padding: '0' }}>
+                                                    {/* Custom Cell for INSS showing Value + Percentage hint */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '12px 16px' }}>
+                                                        <span style={{ fontFamily: 'monospace', color: '#ef4444', fontWeight: 'bold' }}>{inssVal.toLocaleString()}</span>
+                                                        <span style={{ fontSize: '9px', color: '#ef4444', opacity: 0.7 }}>{(inst.inss_percent || 3)}%</span>
+                                                    </div>
+                                                </td>
+                                                <EditableCell instructor={inst} field="absences_discount" value={faltas} color="#ef4444" />
+                                                <EditableCell instructor={inst} field="irt_discount" value={irps} color="#ef4444" />
+                                                <EditableCell instructor={inst} field="other_deductions" value={outrosDesc} color="#ef4444" />
+                                                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: '#ef4444', background: '#450a0a', borderRight: '1px solid #334155' }}>
+                                                    {totalDesc.toLocaleString()}
+                                                </td>
+
+                                                <td style={{ ...tdStyle, textAlign: 'right', borderRight: '1px solid #334155' }}>
                                                     <div style={{ background: '#065f46', color: '#10b981', padding: '6px 12px', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 'bold', display: 'inline-block', border: '1px solid #10b981' }}>
-                                                        {(inst.net_salary || 0).toLocaleString()}
+                                                        {liquido.toLocaleString()}
                                                     </div>
                                                 </td>
                                                 <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                    <button
-                                                        onClick={() => handleEdit(inst)}
-                                                        style={{
-                                                            background: '#3b82f6',
-                                                            color: 'white',
-                                                            border: 'none',
-                                                            padding: '8px 16px',
-                                                            borderRadius: '6px',
-                                                            cursor: 'pointer',
-                                                            fontSize: '12px',
-                                                            fontWeight: 'bold'
-                                                        }}
-                                                    >
-                                                        ✏️ Editar
+                                                    <button onClick={() => handleEdit(inst)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px' }}>
+                                                        ✏️
                                                     </button>
                                                 </td>
                                             </tr>
@@ -917,7 +971,7 @@ const Instructors = () => {
                             {/* Dados Salariais */}
                             <div style={{ marginBottom: '30px' }}>
                                 <h4 style={{ fontSize: '14px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 'bold' }}>💰 Salário e Ganhos</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Salário Base (F)</label>
                                         <input type="number" value={formData.base_salary || 0} onChange={(e) => updateField('base_salary', parseFloat(e.target.value) || 0)} style={inputStyle} />
@@ -930,16 +984,24 @@ const Instructors = () => {
                                         <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Bónus (H)</label>
                                         <input type="number" value={formData.bonus || 0} onChange={(e) => updateField('bonus', parseFloat(e.target.value) || 0)} style={inputStyle} />
                                     </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#fbbf24', marginBottom: '6px', fontWeight: 'bold' }}>Acréscimos</label>
+                                        <input type="number" value={formData.additional_earnings || 0} onChange={(e) => updateField('additional_earnings', parseFloat(e.target.value) || 0)} style={{ ...inputStyle, borderColor: '#fbbf24' }} />
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Descontos */}
                             <div style={{ marginBottom: '30px' }}>
-                                <h4 style={{ fontSize: '14px', color: '#ef4444', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 'bold' }}>📉 Descontos</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                                <h4 style={{ fontSize: '14px', color: '#ef4444', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 'bold' }}>📉 Descontos e Impostos</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>INSS 3% (K)</label>
-                                        <input type="number" value={formData.inss_discount || 0} onChange={(e) => updateField('inss_discount', parseFloat(e.target.value) || 0)} style={inputStyle} />
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#ef4444', marginBottom: '6px', fontWeight: 'bold' }}>% INSS</label>
+                                        <input type="number" step="0.1" value={formData.inss_percent !== undefined ? formData.inss_percent : 3} onChange={(e) => updateField('inss_percent', parseFloat(e.target.value) || 0)} style={{ ...inputStyle, borderColor: '#ef4444' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Valor INSS (K)</label>
+                                        <input type="number" value={formData.inss_discount || 0} readOnly style={{ ...inputStyle, background: '#334155', cursor: 'not-allowed', color: '#cbd5e1' }} />
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>IRPS (N)</label>
@@ -950,7 +1012,7 @@ const Instructors = () => {
                                         <input type="number" value={formData.absences_discount || 0} onChange={(e) => updateField('absences_discount', parseFloat(e.target.value) || 0)} style={inputStyle} />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Outros Descontos</label>
+                                        <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>Outros</label>
                                         <input type="number" value={formData.other_deductions || 0} onChange={(e) => updateField('other_deductions', parseFloat(e.target.value) || 0)} style={inputStyle} />
                                     </div>
                                 </div>
