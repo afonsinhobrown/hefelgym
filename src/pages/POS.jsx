@@ -123,47 +123,8 @@ const POS = () => {
         if (cart.length === 0) setIsPaymentStep(false);
     }, [cart]);
 
-    // Lógica PDF
-    useEffect(() => {
-        if (printingInvoice) {
-            // Pequeno delay para garantir que o modal visível renderizou
-            const timer = setTimeout(() => {
-                const element = document.getElementById('pos-receipt-content');
-                if (element) {
-                    try {
-                        // Tentar download automático
-                        const opt = {
-                            margin: 0,
-                            filename: `Recibo_${printingInvoice.id}.pdf`,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, logging: false },
-                            jsPDF: { unit: 'mm', format: [80, 200] }
-                        };
-
-                        // Executar html2pdf
-                        html2pdf().set(opt).from(element).save().then(async () => {
-                            // Sucesso no Auto-Download
-                            // Tentar gerar base64 para o Bot em background
-                            try {
-                                const worker = html2pdf().set(opt).from(element).toPdf();
-                                const pdf = await worker.get('pdf');
-                                const base64 = pdf.output('datauristring');
-                                sendToBot(printingInvoice, base64);
-                            } catch (e) {
-                                console.warn("Erro ao enviar bot background:", e);
-                            }
-                        }).catch(err => {
-                            console.warn("Auto-download falhou (popup bloqueado?). User pode usar botões manuais.", err);
-                        });
-
-                    } catch (e) {
-                        console.error("Erro setup html2pdf:", e);
-                    }
-                }
-            }, 800);
-            return () => clearTimeout(timer);
-        }
-    }, [printingInvoice]);
+    // Lógica PDF - MOVI ESTE useEffect PARA DEPOIS DA FUNÇÃO sendToBot
+    // Vou deixar ele aqui mas ele será definido depois
 
     const sendToBot = async (invoice, base64File) => {
         let phone = invoice.client?.phone;
@@ -349,6 +310,30 @@ const POS = () => {
         };
 
         if (window.confirm(`Confirmar Pagamento de ${total} MT via ${payMethod.toUpperCase()}?`)) {
+            // Criar objeto de recibo antes de finalizar a venda
+            const clientName = selectedClient?.name || 'Cliente Avulso';
+            
+            const receipt = {
+                id: `TEMP_${Date.now()}`,
+                date: new Date().toISOString(),
+                items: [...cart],
+                total: total,
+                amount: total,
+                status: 'pago',
+                clientName,
+                client: {
+                    name: clientName,
+                    phone: selectedClient?.phone || clients.find(c => c.id === selectedClient?.id)?.phone || ''
+                },
+                payment: paymentDetails
+            };
+            
+            console.log("Criando recibo para impressão:", receipt);
+            
+            // Primeiro mostrar o recibo
+            setPrintingInvoice(receipt);
+            
+            // Depois finalizar a venda
             finalizeSale('pago', paymentDetails);
         }
     };
@@ -359,6 +344,7 @@ const POS = () => {
             const clientId = selectedClient?.id || null;
 
             const invoice = await db.inventory.processSale(clientId, cart, status, paymentDetails);
+            console.log("Venda finalizada no banco:", invoice);
 
             if (status === 'pago' && clientId) {
                 const planItem = cart.find(i => i.type === 'plan' || i.name.toLowerCase().includes('plano') || i.name.toLowerCase().includes('pt '));
@@ -402,6 +388,15 @@ const POS = () => {
 
             setLastSale(fullInvoice);
             setGeneratedInvoice(fullInvoice);
+            
+            // Atualizar o recibo com o ID real do banco de dados
+            if (printingInvoice && invoice.id) {
+                console.log("Atualizando recibo com ID real:", invoice.id);
+                setPrintingInvoice(prev => ({
+                    ...prev,
+                    id: invoice.id
+                }));
+            }
 
             setCart([]);
             setIsPaymentStep(false);
@@ -420,9 +415,56 @@ const POS = () => {
     const closeSale = () => {
         setLastSale(null);
         setGeneratedInvoice(null);
+        setPrintingInvoice(null);
         setSelectedClient(null);
         setClientSearchInput('');
     };
+
+    // Lógica PDF - AGORA DEFININDO O useEffect APÓS AS FUNÇÕES
+    useEffect(() => {
+        if (printingInvoice) {
+            console.log("printingInvoice definido, preparando PDF:", printingInvoice);
+            // Pequeno delay para garantir que o modal visível renderizou
+            const timer = setTimeout(() => {
+                const element = document.getElementById('pos-receipt-content');
+                console.log("Elemento para PDF:", element);
+                if (element) {
+                    try {
+                        // Tentar download automático
+                        const opt = {
+                            margin: 0,
+                            filename: `Recibo_${printingInvoice.id}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, logging: false },
+                            jsPDF: { unit: 'mm', format: [80, 200] }
+                        };
+
+                        // Executar html2pdf
+                        html2pdf().set(opt).from(element).save().then(async () => {
+                            // Sucesso no Auto-Download
+                            // Tentar gerar base64 para o Bot em background
+                            try {
+                                const worker = html2pdf().set(opt).from(element).toPdf();
+                                const pdf = await worker.get('pdf');
+                                const base64 = pdf.output('datauristring');
+                                sendToBot(printingInvoice, base64);
+                            } catch (e) {
+                                console.warn("Erro ao enviar bot background:", e);
+                            }
+                        }).catch(err => {
+                            console.warn("Auto-download falhou (popup bloqueado?). User pode usar botões manuais.", err);
+                        });
+
+                    } catch (e) {
+                        console.error("Erro setup html2pdf:", e);
+                    }
+                } else {
+                    console.error("Elemento 'pos-receipt-content' não encontrado!");
+                }
+            }, 800);
+            return () => clearTimeout(timer);
+        }
+    }, [printingInvoice]);
 
     const [activeTab, setActiveTab] = useState('all');
 
@@ -804,6 +846,25 @@ const POS = () => {
                             <span>Total a Pagar</span>
                             <span className="total-amount">{calculateTotal().toLocaleString()} MT</span>
                         </div>
+                        
+                        {/* BOTÃO DE TESTE TEMPORÁRIO - REMOVER DEPOIS */}
+                        <button 
+                            onClick={() => {
+                                const testInvoice = {
+                                    id: "TEST123",
+                                    date: new Date().toISOString(),
+                                    items: [{ name: "Produto Teste", price: 1000, qty: 1 }],
+                                    total: 1000,
+                                    clientName: "Cliente Teste",
+                                    client: { name: "Cliente Teste", phone: "841234567" }
+                                };
+                                console.log("Testando recibo:", testInvoice);
+                                setPrintingInvoice(testInvoice);
+                            }}
+                            className="btn btn-yellow mb-2 text-sm w-full"
+                        >
+                            🧪 Testar Recibo (Debug)
+                        </button>
 
                         {isPaymentStep ? (
                             <form onSubmit={confirmPayment} className="payment-form animate-fade-in">
@@ -912,86 +973,161 @@ const POS = () => {
 
             {/* Modal de Impressão / Recibo - VISIBLE & ROBUST */}
             {printingInvoice && (
-    <div style={{
-        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-        background: 'rgba(0,0,0,0.9)', zIndex: 999999,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '10px'
-    }}>
-        <div style={{ 
-            background: 'white', 
-            padding: '10px', 
-            borderRadius: '8px', 
-            marginBottom: '20px', 
-            maxHeight: '70vh', 
-            overflowY: 'auto', 
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)' 
-        }}>
-            {/* Wrapper for PDF generation */}
-            <div id="pos-receipt-content" style={{ width: '80mm', background: 'white', margin: '0 auto' }}>
-                <InvoiceTemplate invoice={printingInvoice} isThermal={true} />
-            </div>
-        </div>
-        
-        <div className="flex flex-wrap justify-center gap-4">
-            <button 
-                className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
-                onClick={() => setPrintingInvoice(null)}
-            >
-                <X size={20} /> Fechar
-            </button>
-            
-            <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
-                onClick={() => {
-                    const element = document.getElementById('pos-receipt-content');
-                    // Configuração robusta para html2pdf
-                    const opt = { 
-                        margin: [0, 0, 0, 0], 
-                        filename: `Recibo_${printingInvoice.id}.pdf`, 
-                        image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, logging: false },
-                        jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' } 
-                    };
-                    html2pdf().set(opt).from(element).save();
-                }}
-            >
-                <Download size={20} /> Baixar PDF
-            </button>
+                <div style={{
+                    position: 'fixed', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100vw', 
+                    height: '100vh',
+                    background: 'rgba(0,0,0,0.9)', 
+                    zIndex: 999999,
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    padding: '10px'
+                }}>
+                    <div style={{ 
+                        background: 'white', 
+                        padding: '10px', 
+                        borderRadius: '8px', 
+                        marginBottom: '20px', 
+                        maxHeight: '70vh', 
+                        overflowY: 'auto', 
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        width: 'auto',
+                        minWidth: '300px'
+                    }}>
+                        {/* Wrapper for PDF generation */}
+                        <div id="pos-receipt-content" style={{ 
+                            width: '80mm', 
+                            background: 'white', 
+                            margin: '0 auto',
+                            minHeight: '200px'
+                        }}>
+                            {printingInvoice ? (
+                                <InvoiceTemplate invoice={printingInvoice} isThermal={true} />
+                            ) : (
+                                <div style={{ padding: '20px', textAlign: 'center' }}>
+                                    <p>Carregando recibo...</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap justify-center gap-4">
+                        <button 
+                            className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => {
+                                console.log("Fechando recibo");
+                                setPrintingInvoice(null);
+                            }}
+                        >
+                            <X size={20} /> Fechar
+                        </button>
+                        
+                        <button 
+                            className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => {
+                                const element = document.getElementById('pos-receipt-content');
+                                console.log("Gerando PDF do elemento:", element);
+                                if (element) {
+                                    // Configuração robusta para html2pdf
+                                    const opt = { 
+                                        margin: [0, 0, 0, 0], 
+                                        filename: `Recibo_${printingInvoice.id}.pdf`, 
+                                        image: { type: 'jpeg', quality: 0.98 },
+                                        html2canvas: { 
+                                            scale: 2, 
+                                            useCORS: true, 
+                                            logging: false,
+                                            backgroundColor: '#ffffff'
+                                        },
+                                        jsPDF: { 
+                                            unit: 'mm', 
+                                            format: [80, 297], 
+                                            orientation: 'portrait' 
+                                        } 
+                                    };
+                                    html2pdf().set(opt).from(element).save();
+                                } else {
+                                    alert("Elemento do recibo não encontrado!");
+                                }
+                            }}
+                        >
+                            <Download size={20} /> Baixar PDF
+                        </button>
 
-            <button 
-                className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
-                onClick={() => window.print()}
-            >
-                <Printer size={20} /> Imprimir (Browser)
-            </button>
-        </div>
-        <p className="text-white mt-4 text-sm opacity-70 text-center">
-            Se o download automático não iniciou, use os botões acima.
-        </p>
-    </div>
-)}
+                        <button 
+                            className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => window.print()}
+                        >
+                            <Printer size={20} /> Imprimir (Browser)
+                        </button>
+                    </div>
+                    <p className="text-white mt-4 text-sm opacity-70 text-center">
+                        Se o download automático não iniciou, use os botões acima.
+                    </p>
+                </div>
+            )}
 
-<style>{`
-                .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
-                .pos-container { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; height: 100%; padding-bottom: 1rem; }
+            <style>{`
+                .pos-page { 
+                    height: calc(100vh - 100px); 
+                    overflow: hidden; 
+                    display: flex; 
+                    flex-direction: column; 
+                    padding-bottom: 2rem; 
+                }
+                .pos-container { 
+                    display: grid; 
+                    grid-template-columns: 2fr 1fr; 
+                    gap: 1rem; 
+                    height: 100%; 
+                    padding-bottom: 1rem; 
+                }
                 
-                .pos-products { display: flex; flex-direction: column; overflow: hidden; padding-right: 0.5rem; }
-                .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-shrink: 0; }
+                .pos-products { 
+                    display: flex; 
+                    flex-direction: column; 
+                    overflow: hidden; 
+                    padding-right: 0.5rem; 
+                }
+                .pos-header { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    margin-bottom: 1rem; 
+                    flex-shrink: 0; 
+                }
                 
                 .products-grid { 
-                    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.8rem; 
-                    overflow-y: auto; padding-right: 0.5rem; flex: 1;
+                    display: grid; 
+                    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+                    gap: 0.8rem; 
+                    overflow-y: auto; 
+                    padding-right: 0.5rem; 
+                    flex: 1;
                     align-content: start;
                 }
 
                 .pos-cart { 
                     background: var(--bg-card); 
-                    display: flex; flex-direction: column; height: 100%; maxHeight: 100%;
-                    border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden;
+                    display: flex; 
+                    flex-direction: column; 
+                    height: 100%; 
+                    maxHeight: 100%;
+                    border-radius: var(--radius); 
+                    border: 1px solid var(--border); 
+                    overflow: hidden;
                 }
                 
-                .cart-header { padding: 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-card); }
+                .cart-header { 
+                    padding: 1rem; 
+                    border-bottom: 1px solid var(--border); 
+                    flex-shrink: 0; 
+                    background: var(--bg-card); 
+                }
                 
                 .cart-items { 
                     flex: 1; 
@@ -1010,84 +1146,285 @@ const POS = () => {
                 }
 
                 .product-card { 
-                    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-                    padding: 1rem; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center;
+                    background: var(--bg-card); 
+                    border: 1px solid var(--border); 
+                    border-radius: var(--radius);
+                    padding: 1rem; 
+                    cursor: pointer; 
+                    transition: all 0.2s; 
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; 
+                    text-align: center;
                 }
-                .product-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-                .product-card.disabled { opacity: 0.5; cursor: not-allowed; }
+                .product-card:hover { 
+                    border-color: var(--primary); 
+                    transform: translateY(-2px); 
+                }
+                .product-card.disabled { 
+                    opacity: 0.5; 
+                    cursor: not-allowed; 
+                }
                 
                 .product-icon { 
-                    width: 40px; height: 40px; background: var(--bg-card-hover); border-radius: 50%; 
-                    display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 0.5rem; color: var(--primary);
+                    width: 40px; 
+                    height: 40px; 
+                    background: var(--bg-card-hover); 
+                    border-radius: 50%; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-weight: bold; 
+                    margin-bottom: 0.5rem; 
+                    color: var(--primary);
                 }
-                .product-info h4 { font-size: 0.9rem; margin-bottom: 0.2rem; }
-                .product-info .stock { font-size: 0.75rem; color: var(--text-muted); display: block; }
-                .product-info .price { font-weight: 700; color: var(--text-main); display: block; margin-top: 0.25rem; }
+                .product-info h4 { 
+                    font-size: 0.9rem; 
+                    margin-bottom: 0.2rem; 
+                }
+                .product-info .stock { 
+                    font-size: 0.75rem; 
+                    color: var(--text-muted); 
+                    display: block; 
+                }
+                .product-info .price { 
+                    font-weight: 700; 
+                    color: var(--text-main); 
+                    display: block; 
+                    margin-top: 0.25rem; 
+                }
 
                 .empty-cart { 
-                    display: flex; flex-direction: column; align-items: center; justify-content: center; 
-                    height: 100%; color: var(--text-muted); gap: 1rem; opacity: 0.5; 
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; 
+                    justify-content: center; 
+                    height: 100%; 
+                    color: var(--text-muted); 
+                    gap: 1rem; 
+                    opacity: 0.5; 
                 }
                 
                 .cart-item { 
-                    display: flex; align-items: center; justify-content: space-between; 
-                    margin-bottom: 0.5rem; padding: 0.75rem; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: space-between; 
+                    margin-bottom: 0.5rem; 
+                    padding: 0.75rem; 
                     background: rgba(255, 255, 255, 0.05);
                     border-radius: var(--radius);
                     border: 1px solid transparent;
                     gap: 0.5rem;
                 }
-                .cart-item:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); }
-                .item-name { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-                .item-name span { font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .item-name small { color: var(--text-muted); font-size: 0.75rem; }
+                .cart-item:hover { 
+                    border-color: var(--primary); 
+                    background: rgba(255, 255, 255, 0.08); 
+                }
+                .item-name { 
+                    flex: 1; 
+                    display: flex; 
+                    flex-direction: column; 
+                    overflow: hidden; 
+                }
+                .item-name span { 
+                    font-weight: 500; 
+                    color: var(--text-main); 
+                    white-space: nowrap; 
+                    overflow: hidden; 
+                    text-overflow: ellipsis; 
+                }
+                .item-name small { 
+                    color: var(--text-muted); 
+                    font-size: 0.75rem; 
+                }
                 
-                .item-controls { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-main); padding: 0.2rem; border-radius: 4px; }
-                .item-controls button { padding: 4px; border: none; background: transparent; color: var(--text-main); cursor: pointer; display: flex; }
-                .item-controls button:hover { color: var(--primary); }
-                .item-controls span { font-size: 0.9rem; min-width: 1.5rem; text-align: center; font-weight: bold; }
+                .item-controls { 
+                    display: flex; 
+                    align-items: center; 
+                    gap: 0.5rem; 
+                    background: var(--bg-main); 
+                    padding: 0.2rem; 
+                    border-radius: 4px; 
+                }
+                .item-controls button { 
+                    padding: 4px; 
+                    border: none; 
+                    background: transparent; 
+                    color: var(--text-main); 
+                    cursor: pointer; 
+                    display: flex; 
+                }
+                .item-controls button:hover { 
+                    color: var(--primary); 
+                }
+                .item-controls span { 
+                    font-size: 0.9rem; 
+                    min-width: 1.5rem; 
+                    text-align: center; 
+                    font-weight: bold; 
+                }
 
-                .item-total { font-weight: bold; color: var(--primary); font-size: 0.9rem; min-width: 60px; text-align: right; }
-                .delete-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; margin-left: 4px; }
-                .delete-btn:hover { color: #ef4444; }
+                .item-total { 
+                    font-weight: bold; 
+                    color: var(--primary); 
+                    font-size: 0.9rem; 
+                    min-width: 60px; 
+                    text-align: right; 
+                }
+                .delete-btn { 
+                    background: transparent; 
+                    border: none; 
+                    color: var(--text-muted); 
+                    cursor: pointer; 
+                    padding: 4px; 
+                    margin-left: 4px; 
+                }
+                .delete-btn:hover { 
+                    color: #ef4444; 
+                }
                 
-                .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 1.1rem; }
-                .total-amount { font-weight: 800; font-size: 1.5rem; color: var(--primary); }
+                .total-row { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    margin-bottom: 1rem; 
+                    font-size: 1.1rem; 
+                }
+                .total-amount { 
+                    font-weight: 800; 
+                    font-size: 1.5rem; 
+                    color: var(--primary); 
+                }
                 
-                .checkout-actions { display: flex; gap: 1rem; }
-                .checkout-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.8rem; font-size: 1rem; gap: 0.2rem; }
-                .sub-text { font-size: 0.7rem; font-weight: 400; opacity: 0.8; }
-                .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
-                .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+                .checkout-actions { 
+                    display: flex; 
+                    gap: 1rem; 
+                }
+                .checkout-btn { 
+                    flex: 1; 
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; 
+                    justify-content: center; 
+                    padding: 0.8rem; 
+                    font-size: 1rem; 
+                    gap: 0.2rem; 
+                }
+                .sub-text { 
+                    font-size: 0.7rem; 
+                    font-weight: 400; 
+                    opacity: 0.8; 
+                }
+                .btn-outline { 
+                    background: transparent; 
+                    border: 1px solid var(--border); 
+                    color: var(--text-main); 
+                }
+                .btn-outline:hover { 
+                    border-color: var(--primary); 
+                    color: var(--primary); 
+                }
+                
+                .btn-yellow {
+                    background: #f59e0b;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                .btn-yellow:hover {
+                    background: #d97706;
+                }
                 
                 @media (max-width: 1024px) {
-                    .pos-container { grid-template-columns: 1fr; overflow-y: auto; }
-                    .pos-page { height: auto; overflow: auto; }
+                    .pos-container { 
+                        grid-template-columns: 1fr; 
+                        overflow-y: auto; 
+                    }
+                    .pos-page { 
+                        height: auto; 
+                        overflow: auto; 
+                    }
                 }
                 
-                .search-box { position: relative; max-width: 300px; }
-                .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-                .search-input { padding-left: 2.5rem; width: 100%; }
+                .search-box { 
+                    position: relative; 
+                    max-width: 300px; 
+                }
+                .search-icon { 
+                    position: absolute; 
+                    left: 0.8rem; 
+                    top: 50%; 
+                    transform: translateY(-50%); 
+                    color: var(--text-muted); 
+                }
+                .search-input { 
+                    padding-left: 2.5rem; 
+                    width: 100%; 
+                }
 
-                .quick-cash-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; padding: 2px; }
-                .quick-cash-grid button { padding: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
-                .quick-cash-grid button:hover { border-color: var(--primary); color: var(--primary); }
+                .quick-cash-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(5, 1fr); 
+                    gap: 0.4rem; 
+                    padding: 2px; 
+                }
+                .quick-cash-grid button { 
+                    padding: 4px; 
+                    font-size: 0.75rem; 
+                    border: 1px solid rgba(255,255,255,0.1); 
+                    background: rgba(0,0,0,0.2); 
+                    border-radius: 4px; 
+                    color: var(--text-muted); 
+                    cursor: pointer; 
+                }
+                .quick-cash-grid button:hover { 
+                    border-color: var(--primary); 
+                    color: var(--primary); 
+                }
 
-                .client-search-wrapper .btn { padding: 0.5rem 1rem; }
-                .client-search-wrapper .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.875rem; }
+                .client-search-wrapper .btn { 
+                    padding: 0.5rem 1rem; 
+                }
+                .client-search-wrapper .btn-sm { 
+                    padding: 0.25rem 0.75rem; 
+                    font-size: 0.875rem; 
+                }
 
-                .print-only { display: none; }
+                .print-only { 
+                    display: none; 
+                }
                 
                 @media print {
-                    .no-print { display: none !important; }
-                    .print-only { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-                    .modal-overlay { display: none !important; }
+                    .no-print { 
+                        display: none !important; 
+                    }
+                    .print-only { 
+                        display: block !important; 
+                        position: absolute; 
+                        left: 0; 
+                        top: 0; 
+                        width: 100%; 
+                    }
+                    .modal-overlay { 
+                        display: none !important; 
+                    }
                     
-                    body, html { width: 100%; margin: 0; padding: 0; background: white; }
-                    .pos-page { height: auto; overflow: visible; }
+                    body, html { 
+                        width: 100%; 
+                        margin: 0; 
+                        padding: 0; 
+                        background: white; 
+                    }
+                    .pos-page { 
+                        height: auto; 
+                        overflow: visible; 
+                    }
                 }
             `}</style>
-        </div >
+        </div>
     );
 };
 
