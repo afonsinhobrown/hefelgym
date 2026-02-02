@@ -143,32 +143,56 @@ export const db = {
             }));
 
             const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const invoiceId = `FT${Date.now()}`;
+
             const invoiceData = {
+                id: invoiceId,
                 client_id: clientId || null,
                 client_name: clientName,
                 amount: total,
+                total: total,
                 status: paymentStatus,
-                items: cleanItems,
+                items: JSON.stringify(cleanItems), // SERIALIZE as JSON string for Supabase
                 date: new Date().toISOString(),
-                payment_method: paymentDetails?.method,
+                payment_method: paymentDetails?.method || 'cash',
+                payment_ref: paymentDetails?.ref || '',
                 gym_id: gymId
             };
 
             if (USE_LOCAL_SERVER) {
-                return api.post('invoices', { ...invoiceData, id: `FT${Date.now()}` });
+                const result = await api.post('invoices', invoiceData);
+                return { ...result, items: cleanItems }; // Return with parsed items
             } else {
-                // ... (Cloud Logic) ...
-                for (const item of items) {
-                    const { data: prod } = await supabase.from('products').select('stock').eq('id', item.productId).single();
-                    if (prod && prod.stock < item.qty) throw new Error(`Stock insuficiente: ${item.description}`);
-                }
-                const { data: newInvoice, error } = await supabase.from('invoices').insert({ ...invoiceData, id: `FT${Date.now()}` }).select().single();
+                // Cloud Logic - Supabase
+                const { data: newInvoice, error } = await supabase
+                    .from('invoices')
+                    .insert(invoiceData)
+                    .select()
+                    .single();
+
                 if (error) throw error;
+
+                // Update stock for products
                 for (const item of items) {
-                    const { data: prod } = await supabase.from('products').select('stock').eq('id', item.productId).single();
-                    if (prod) await supabase.from('products').update({ stock: prod.stock - item.qty }).eq('id', item.productId);
+                    if (item.productId || item.id) {
+                        const productId = item.productId || item.id;
+                        const { data: prod } = await supabase
+                            .from('products')
+                            .select('stock')
+                            .eq('id', productId)
+                            .single();
+
+                        if (prod && prod.stock !== null) {
+                            const newStock = Math.max(0, prod.stock - (item.qty || item.quantity || 1));
+                            await supabase
+                                .from('products')
+                                .update({ stock: newStock })
+                                .eq('id', productId);
+                        }
+                    }
                 }
-                return { ...newInvoice, items: newInvoice.items || [] };
+
+                return { ...newInvoice, items: cleanItems }; // Return with parsed items array
             }
         }
     },
