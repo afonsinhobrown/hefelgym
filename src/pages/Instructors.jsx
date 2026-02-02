@@ -446,7 +446,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.1</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.2</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -571,114 +571,143 @@ const Instructors = () => {
                 </div>
             )}
 
-
-            {error && (
-                <div style={{ background: '#7f1d1d', color: '#fca5a5', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #dc2626' }}>
-                    ⚠️ {error}
+            {/* 🔒 BLOQUEIO DIA 20 */}
+            {!isViewingHistory && new Date().getDate() < 20 ? (
+                <div style={{
+                    textAlign: 'center',
+                    padding: '60px 20px',
+                    background: '#1e293b',
+                    borderRadius: '16px',
+                    border: '1px solid #334155',
+                    marginTop: '20px'
+                }}>
+                    <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔒</div>
+                    <h3 style={{ fontSize: '24px', color: 'white', marginBottom: '10px' }}>
+                        Folha de {new Date().toLocaleDateString('pt-PT', { month: 'long' })} Indisponível
+                    </h3>
+                    <p style={{ color: '#94a3b8', fontSize: '16px', maxWidth: '500px', margin: '0 auto' }}>
+                        O processamento da folha salarial do mês corrente só está disponível a partir do dia 20.
+                        <br /><br />
+                        Utilize o seletor acima para consultar <strong>Folhas Históricas</strong>.
+                    </p>
+                    <div style={{ marginTop: '30px', padding: '10px 20px', background: '#0f172a', display: 'inline-block', borderRadius: '8px', border: '1px solid #334155', color: '#64748b' }}>
+                        Hoje: Dia {new Date().getDate()} • Libera em: {20 - new Date().getDate()} dias
+                    </div>
                 </div>
-            )}
+            ) : (
+                <>
+                    {/* CONTEÚDO DA FOLHA (TOTAIS E TABELA) */}
 
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
-                <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
-                        Total Líquido
-                    </div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#10b981' }}>
-                        {totalLiquido.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
-                    </div>
-                </div>
-                <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
-                        Encargos INSS
-                    </div>
-                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ef4444' }}>
-                        {totalINSS.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
-                    </div>
-                </div>
-            </div>
+                    {error && (
+                        <div style={{ background: '#7f1d1d', color: '#fca5a5', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #dc2626' }}>
+                            ⚠️ {error}
+                        </div>
+                    )}
 
-            <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ background: '#0f172a' }}>
-                            <tr>
-                                <th style={thStyle}>Nº</th>
-                                <th style={thStyle}>Colaborador / NUIT</th>
-                                <th style={thStyle}>Função</th>
-                                <th style={thStyle}>Contacto</th>
-                                <th style={{ ...thStyle, textAlign: 'right' }}>S. Base (F)</th>
-                                <th style={{ ...thStyle, textAlign: 'right' }}>H. Extra (G)</th>
-                                <th style={{ ...thStyle, textAlign: 'right' }}>Bónus (H)</th>
-                                <th style={{ ...thStyle, textAlign: 'right' }}>Bruto (J)</th>
-                                <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>INSS 3% (K)</th>
-                                <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>IRPS (N)</th>
-                                <th style={{ ...thStyle, textAlign: 'right', color: '#10b981' }}>Líquido (Q)</th>
-                                <th style={{ ...thStyle, textAlign: 'center' }}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredInstructors.map((inst, idx) => {
-                                const bruto = (inst.base_salary || 0) + (inst.extra_hours || 0) + (inst.bonus || 0) + (inst.additional_earnings || 0);
-                                return (
-                                    <tr key={inst.id} style={{ borderBottom: '1px solid #334155', background: idx % 2 === 0 ? '#1e293b' : '#0f172a' }}>
-                                        <td style={tdStyle}>
-                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                                                {inst.order_index || idx + 1}
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>
-                                                {inst.name}
-                                            </div>
-                                            <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
-                                                {inst.nuit || '---'}
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ background: '#334155', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block' }}>
-                                                {inst.specialties || inst.role || 'Staff'}
-                                            </div>
-                                        </td>
-                                        <td style={{ ...tdStyle, fontSize: '12px', color: '#94a3b8' }}>
-                                            {inst.phone || '---'}
-                                        </td>
-                                        <EditableCell instructor={inst} field="base_salary" value={inst.base_salary} />
-                                        <EditableCell instructor={inst} field="extra_hours" value={inst.extra_hours} color="#94a3b8" />
-                                        <EditableCell instructor={inst} field="bonus" value={inst.bonus} color="#94a3b8" />
-                                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                                            {bruto.toLocaleString()}
-                                        </td>
-                                        <EditableCell instructor={inst} field="inss_discount" value={inst.inss_discount} color="#ef4444" />
-                                        <EditableCell instructor={inst} field="irt_discount" value={inst.irt_discount} color="#ef4444" />
-                                        <td style={{ ...tdStyle, textAlign: 'right' }}>
-                                            <div style={{ background: '#065f46', color: '#10b981', padding: '6px 12px', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 'bold', display: 'inline-block', border: '1px solid #10b981' }}>
-                                                {(inst.net_salary || 0).toLocaleString()}
-                                            </div>
-                                        </td>
-                                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                            <button
-                                                onClick={() => handleEdit(inst)}
-                                                style={{
-                                                    background: '#3b82f6',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    padding: '8px 16px',
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '12px',
-                                                    fontWeight: 'bold'
-                                                }}
-                                            >
-                                                ✏️ Editar
-                                            </button>
-                                        </td>
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+                        <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
+                                Total Líquido
+                            </div>
+                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#10b981' }}>
+                                {totalLiquido.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1, background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 'bold' }}>
+                                Encargos INSS
+                            </div>
+                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ef4444' }}>
+                                {totalINSS.toLocaleString()} <span style={{ fontSize: '16px', color: '#6b7280' }}>MT</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
+
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                <thead style={{ background: '#0f172a' }}>
+                                    <tr>
+                                        <th style={thStyle}>Nº</th>
+                                        <th style={thStyle}>Colaborador / NUIT</th>
+                                        <th style={thStyle}>Função</th>
+                                        <th style={thStyle}>Contacto</th>
+                                        <th style={{ ...thStyle, textAlign: 'right' }}>S. Base (F)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right' }}>H. Extra (G)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right' }}>Bónus (H)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right' }}>Bruto (J)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>INSS 3% (K)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right', color: '#ef4444' }}>IRPS (N)</th>
+                                        <th style={{ ...thStyle, textAlign: 'right', color: '#10b981' }}>Líquido (Q)</th>
+                                        <th style={{ ...thStyle, textAlign: 'center' }}>Ações</th>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                </thead>
+                                <tbody>
+                                    {filteredInstructors.map((inst, idx) => {
+                                        const bruto = (inst.base_salary || 0) + (inst.extra_hours || 0) + (inst.bonus || 0) + (inst.additional_earnings || 0);
+                                        return (
+                                            <tr key={inst.id} style={{ borderBottom: '1px solid #334155', background: idx % 2 === 0 ? '#1e293b' : '#0f172a' }}>
+                                                <td style={tdStyle}>
+                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                                        {inst.order_index || idx + 1}
+                                                    </div>
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>
+                                                        {inst.name}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>
+                                                        {inst.nuit || '---'}
+                                                    </div>
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <div style={{ background: '#334155', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block' }}>
+                                                        {inst.specialties || inst.role || 'Staff'}
+                                                    </div>
+                                                </td>
+                                                <td style={{ ...tdStyle, fontSize: '12px', color: '#94a3b8' }}>
+                                                    {inst.phone || '---'}
+                                                </td>
+                                                <EditableCell instructor={inst} field="base_salary" value={inst.base_salary} />
+                                                <EditableCell instructor={inst} field="extra_hours" value={inst.extra_hours} color="#94a3b8" />
+                                                <EditableCell instructor={inst} field="bonus" value={inst.bonus} color="#94a3b8" />
+                                                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                                    {bruto.toLocaleString()}
+                                                </td>
+                                                <EditableCell instructor={inst} field="inss_discount" value={inst.inss_discount} color="#ef4444" />
+                                                <EditableCell instructor={inst} field="irt_discount" value={inst.irt_discount} color="#ef4444" />
+                                                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                                                    <div style={{ background: '#065f46', color: '#10b981', padding: '6px 12px', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 'bold', display: 'inline-block', border: '1px solid #10b981' }}>
+                                                        {(inst.net_salary || 0).toLocaleString()}
+                                                    </div>
+                                                </td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    <button
+                                                        onClick={() => handleEdit(inst)}
+                                                        style={{
+                                                            background: '#3b82f6',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            padding: '8px 16px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            fontSize: '12px',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        ✏️ Editar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* MODAL DE EDIÇÃO */}
             {editingInstructor && (
