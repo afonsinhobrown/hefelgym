@@ -298,13 +298,32 @@ const Instructors = () => {
 
     return (
         <div style={{ padding: '20px', color: 'white', fontFamily: 'Arial, sans-serif', background: '#0a0e1a', minHeight: '100vh' }}>
-            <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px' }}>
-                <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                    Gestão de Staff - HEFEL GYM
-                </h2>
-                <p style={{ color: '#94a3b8', marginTop: '5px' }}>
-                    Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
-                </p>
+            <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
+                        Gestão de Staff - HEFEL GYM
+                    </h2>
+                    <p style={{ color: '#94a3b8', marginTop: '5px' }}>
+                        Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
+                    </p>
+                </div>
+                <div style={{
+                    background: isViewingHistory ? '#854d0e' : '#1e3a8a',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    border: `2px solid ${isViewingHistory ? '#fbbf24' : '#3b82f6'}`,
+                    textAlign: 'center'
+                }}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                        {isViewingHistory ? '📜 HISTÓRICO' : '📊 FOLHA ATUAL'}
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: isViewingHistory ? '#fbbf24' : '#60a5fa' }}>
+                        {isViewingHistory
+                            ? payrollHistory.find(h => h.month === selectedMonth)?.month_name + '/' + payrollHistory.find(h => h.month === selectedMonth)?.year
+                            : new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())
+                        }
+                    </div>
+                </div>
             </div>
 
             <div style={{ marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center' }}>
