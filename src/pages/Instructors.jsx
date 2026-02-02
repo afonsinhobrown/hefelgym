@@ -13,6 +13,7 @@ const Instructors = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // 2026-01
     const [payrollHistory, setPayrollHistory] = useState([]);
     const [isViewingHistory, setIsViewingHistory] = useState(false);
+    const [isProcessingLate, setIsProcessingLate] = useState(false); // Novo estado para permitir lançar folhas atrasadas
     const [editingCell, setEditingCell] = useState(null); // { instructorId, field }
     const [tempValue, setTempValue] = useState('');
 
@@ -34,6 +35,10 @@ const Instructors = () => {
             console.error(err);
         }
     };
+
+    useEffect(() => {
+        loadData();
+    }, []);
 
     useEffect(() => {
         loadData();
@@ -192,14 +197,20 @@ const Instructors = () => {
         try {
             // Prompt user to select which month to save
             const currentDate = new Date();
-            const currentMonthKey = currentDate.toISOString().slice(0, 7); // 2026-02
+            // Se estiver em modo atrasado, sugere o mês anterior por defeito
+            const defaultDate = isProcessingLate
+                ? new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1) // Mês anterior
+                : currentDate;
+
+            const currentMonthKey = currentDate.toISOString().slice(0, 7); // 2026-02 (Atual real)
+            const suggestMonthKey = defaultDate.toISOString().slice(0, 7); // Sugestão
 
             const monthInput = prompt(
                 `📅 Guardar folha para qual mês?\n\n` +
                 `Formato: AAAA-MM (ex: 2026-01 para Janeiro/2026)\n` +
-                `Mês atual: ${currentMonthKey}\n\n` +
+                (isProcessingLate ? `⚠️ MODO ATRASADO: Sugerido mês anterior\n` : `Mês atual: ${currentMonthKey}\n\n`) +
                 `💡 Dica: Use isto para guardar meses anteriores que esqueceste!`,
-                currentMonthKey
+                suggestMonthKey
             );
 
             if (!monthInput) return; // User cancelled
@@ -446,7 +457,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.2</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.3</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -572,7 +583,7 @@ const Instructors = () => {
             )}
 
             {/* 🔒 BLOQUEIO DIA 20 */}
-            {!isViewingHistory && new Date().getDate() < 20 ? (
+            {!isViewingHistory && !isProcessingLate && new Date().getDate() < 20 ? (
                 <div style={{
                     textAlign: 'center',
                     padding: '60px 20px',
@@ -593,9 +604,56 @@ const Instructors = () => {
                     <div style={{ marginTop: '30px', padding: '10px 20px', background: '#0f172a', display: 'inline-block', borderRadius: '8px', border: '1px solid #334155', color: '#64748b' }}>
                         Hoje: Dia {new Date().getDate()} • Libera em: {20 - new Date().getDate()} dias
                     </div>
+
+                    <div style={{ borderTop: '1px solid #334155', paddingTop: '20px', maxWidth: '400px', margin: '20px auto 0' }}>
+                        <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '10px' }}>
+                            Esqueceu de lançar um mês anterior?
+                        </p>
+                        <button
+                            onClick={() => setIsProcessingLate(true)}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid #fbbf24',
+                                color: '#fbbf24',
+                                padding: '10px 20px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            🔓 Lançar Folha Atrasada
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <>
+                    {/* AVISO DE MODO ATRASADO */}
+                    {isProcessingLate && !isViewingHistory && (
+                        <div style={{ background: '#451a03', border: '1px solid #d97706', color: '#fbbf24', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <strong>⚠️ MODO DE LANÇAMENTO RETROATIVO ATIVO</strong>
+                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', opacity: 0.9 }}>
+                                    Está a editar a tabela para lançar um mês passado. Ao guardar, selecione o mês correto (ex: {new Date().getFullYear()}-{String(new Date().getMonth()).padStart(2, '0')}).
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsProcessingLate(false)}
+                                style={{
+                                    background: 'rgba(0,0,0,0.2)',
+                                    border: 'none',
+                                    color: 'white',
+                                    padding: '5px 10px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    )}
+
                     {/* CONTEÚDO DA FOLHA (TOTAIS E TABELA) */}
 
                     {error && (
