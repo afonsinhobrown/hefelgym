@@ -481,7 +481,7 @@ const Instructors = () => {
             <div style={{ marginBottom: '30px', borderBottom: '2px solid #1e3a8a', paddingBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>
-                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.5</span>
+                        Gestão de Staff - HEFEL GYM <span style={{ fontSize: '14px', color: '#4ade80', background: '#064e3b', padding: '2px 8px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.7</span>
                     </h2>
                     <p style={{ color: '#94a3b8', marginTop: '5px' }}>
                         Ordem Hierárquica Oficial (1-22) • {filteredInstructors.length} Colaboradores
@@ -530,41 +530,46 @@ const Instructors = () => {
                 />
                 <button
                     onClick={exportToPDF}
+                    disabled={!isViewingHistory && !isProcessingLate && new Date().getDate() < 20}
                     style={{
-                        background: '#dc2626',
+                        background: isProcessingLate ? '#d97706' : (!isViewingHistory && new Date().getDate() < 20 ? '#4b5563' : '#dc2626'),
                         color: 'white',
-                        border: 'none',
+                        border: isProcessingLate ? '2px solid #fbbf24' : 'none',
                         padding: '14px 24px',
                         borderRadius: '10px',
-                        cursor: 'pointer',
+                        cursor: (!isViewingHistory && !isProcessingLate && new Date().getDate() < 20) ? 'not-allowed' : 'pointer',
                         fontSize: '14px',
                         fontWeight: 'bold',
                         whiteSpace: 'nowrap',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
+                        gap: '8px',
+                        opacity: (!isViewingHistory && !isProcessingLate && new Date().getDate() < 20) ? 0.5 : 1
                     }}
                 >
-                    📄 Exportar PDF
+                    {isProcessingLate ? '📄 PDF Retroativo' : '📄 Exportar PDF'}
                 </button>
+
                 <button
                     onClick={savePayrollSnapshot}
+                    disabled={!isViewingHistory && !isProcessingLate && new Date().getDate() < 20}
                     style={{
-                        background: '#16a34a',
+                        background: isProcessingLate ? '#d97706' : (!isViewingHistory && new Date().getDate() < 20 ? '#4b5563' : '#16a34a'),
                         color: 'white',
-                        border: 'none',
+                        border: isProcessingLate ? '2px solid #fbbf24' : 'none',
                         padding: '14px 24px',
                         borderRadius: '10px',
-                        cursor: 'pointer',
+                        cursor: (!isViewingHistory && !isProcessingLate && new Date().getDate() < 20) ? 'not-allowed' : 'pointer',
                         fontSize: '14px',
                         fontWeight: 'bold',
                         whiteSpace: 'nowrap',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
+                        gap: '8px',
+                        opacity: (!isViewingHistory && !isProcessingLate && new Date().getDate() < 20) ? 0.5 : 1
                     }}
                 >
-                    💾 Guardar Folha
+                    {isProcessingLate ? '💾 Guardar Retroativo' : '💾 Guardar Folha'}
                 </button>
             </div>
 
