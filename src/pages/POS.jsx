@@ -312,7 +312,7 @@ const POS = () => {
         if (window.confirm(`Confirmar Pagamento de ${total} MT via ${payMethod.toUpperCase()}?`)) {
             // Criar objeto de recibo antes de finalizar a venda
             const clientName = selectedClient?.name || 'Cliente Avulso';
-            
+
             const receipt = {
                 id: `TEMP_${Date.now()}`,
                 date: new Date().toISOString(),
@@ -327,12 +327,12 @@ const POS = () => {
                 },
                 payment: paymentDetails
             };
-            
+
             console.log("Criando recibo para impressão:", receipt);
-            
+
             // Primeiro mostrar o recibo
             setPrintingInvoice(receipt);
-            
+
             // Depois finalizar a venda
             finalizeSale('pago', paymentDetails);
         }
@@ -388,7 +388,7 @@ const POS = () => {
 
             setLastSale(fullInvoice);
             setGeneratedInvoice(fullInvoice);
-            
+
             // Atualizar o recibo com o ID real do banco de dados
             if (printingInvoice && invoice.id) {
                 console.log("Atualizando recibo com ID real:", invoice.id);
@@ -846,9 +846,9 @@ const POS = () => {
                             <span>Total a Pagar</span>
                             <span className="total-amount">{calculateTotal().toLocaleString()} MT</span>
                         </div>
-                        
+
                         {/* BOTÃO DE TESTE TEMPORÁRIO - REMOVER DEPOIS */}
-                        <button 
+                        <button
                             onClick={() => {
                                 const testInvoice = {
                                     id: "TEST123",
@@ -973,35 +973,35 @@ const POS = () => {
 
             {/* Modal de Impressão / Recibo - VISIBLE & ROBUST */}
             {printingInvoice && (
-                <div style={{
-                    position: 'fixed', 
-                    top: 0, 
-                    left: 0, 
-                    width: '100vw', 
+                <div className="pos-print-modal" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
                     height: '100vh',
-                    background: 'rgba(0,0,0,0.9)', 
+                    background: 'rgba(0,0,0,0.9)',
                     zIndex: 999999,
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     justifyContent: 'center',
                     padding: '10px'
                 }}>
-                    <div style={{ 
-                        background: 'white', 
-                        padding: '10px', 
-                        borderRadius: '8px', 
-                        marginBottom: '20px', 
-                        maxHeight: '70vh', 
-                        overflowY: 'auto', 
+                    <div style={{
+                        background: 'white',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        maxHeight: '70vh',
+                        overflowY: 'auto',
                         boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                         width: 'auto',
                         minWidth: '300px'
                     }}>
                         {/* Wrapper for PDF generation */}
-                        <div id="pos-receipt-content" style={{ 
-                            width: '80mm', 
-                            background: 'white', 
+                        <div id="pos-receipt-content" className="printable-area" style={{
+                            width: '80mm',
+                            background: 'white',
                             margin: '0 auto',
                             minHeight: '200px'
                         }}>
@@ -1014,9 +1014,9 @@ const POS = () => {
                             )}
                         </div>
                     </div>
-                    
+
                     <div className="flex flex-wrap justify-center gap-4">
-                        <button 
+                        <button
                             className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
                             onClick={() => {
                                 console.log("Fechando recibo");
@@ -1025,29 +1025,29 @@ const POS = () => {
                         >
                             <X size={20} /> Fechar
                         </button>
-                        
-                        <button 
+
+                        <button
                             className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
                             onClick={() => {
                                 const element = document.getElementById('pos-receipt-content');
                                 console.log("Gerando PDF do elemento:", element);
                                 if (element) {
                                     // Configuração robusta para html2pdf
-                                    const opt = { 
-                                        margin: [0, 0, 0, 0], 
-                                        filename: `Recibo_${printingInvoice.id}.pdf`, 
+                                    const opt = {
+                                        margin: [0, 0, 0, 0],
+                                        filename: `Recibo_${printingInvoice.id}.pdf`,
                                         image: { type: 'jpeg', quality: 0.98 },
-                                        html2canvas: { 
-                                            scale: 2, 
-                                            useCORS: true, 
+                                        html2canvas: {
+                                            scale: 2,
+                                            useCORS: true,
                                             logging: false,
                                             backgroundColor: '#ffffff'
                                         },
-                                        jsPDF: { 
-                                            unit: 'mm', 
-                                            format: [80, 297], 
-                                            orientation: 'portrait' 
-                                        } 
+                                        jsPDF: {
+                                            unit: 'mm',
+                                            format: [80, 297],
+                                            orientation: 'portrait'
+                                        }
                                     };
                                     html2pdf().set(opt).from(element).save();
                                 } else {
@@ -1058,7 +1058,7 @@ const POS = () => {
                             <Download size={20} /> Baixar PDF
                         </button>
 
-                        <button 
+                        <button
                             className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
                             onClick={() => window.print()}
                         >
@@ -1398,30 +1398,49 @@ const POS = () => {
                 }
                 
                 @media print {
-                    .no-print { 
-                        display: none !important; 
-                    }
-                    .print-only { 
-                        display: block !important; 
-                        position: absolute; 
-                        left: 0; 
-                        top: 0; 
-                        width: 100%; 
-                    }
-                    .modal-overlay { 
-                        display: none !important; 
+                    @page { margin: 0; size: auto; }
+                    body * { visibility: hidden; height: 0; overflow: hidden; }
+                    
+                    /* Show only the print modal container (as a reset wrapper) */
+                    .pos-print-modal {
+                        position: fixed !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        background: white !important;
+                        display: block !important;
+                        visibility: visible !important;
+                        z-index: 999999 !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
                     }
                     
-                    body, html { 
-                        width: 100%; 
-                        margin: 0; 
-                        padding: 0; 
-                        background: white; 
+                    /* Hide controls within the modal */
+                    .pos-print-modal button, 
+                    .pos-print-modal p, 
+                    .pos-print-modal .flex {
+                        display: none !important;
                     }
-                    .pos-page { 
-                        height: auto; 
-                        overflow: visible; 
+
+                    /* The Receipt Content itself */
+                    .printable-area, .printable-area * {
+                        visibility: visible !important;
+                        height: auto !important;
+                        overflow: visible !important;
                     }
+
+                    .printable-area {
+                        position: absolute !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 80mm !important;
+                        margin: 0 !important;
+                        box-shadow: none !important;
+                        background: white !important;
+                    }
+
+                    .no-print { display: none !important; }
                 }
             `}</style>
         </div>
