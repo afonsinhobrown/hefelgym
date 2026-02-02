@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { Printer, ShoppingCart, Trash2, Search, Plus, Minus, Save, Send, User, Check, FileText, Share2, Search as SearchIcon, X, UserPlus, Calendar, ChevronDown } from 'lucide-react';
+import { Printer, ShoppingCart, Trash2, Search, Plus, Minus, Save, Send, User, Check, FileText, Share2, Search as SearchIcon, X, UserPlus, Calendar, ChevronDown, Download } from 'lucide-react';
 import InvoiceTemplate from '../components/Invoices/InvoiceTemplate';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
+import html2pdf from 'html2pdf.js';
 
 // Helper para conversão de Base64 para Blob (para upload)
 function dataURItoBlob(dataURI) {
@@ -125,137 +126,42 @@ const POS = () => {
     // Lógica PDF
     useEffect(() => {
         if (printingInvoice) {
-            const generatePDF = async () => {
-                setIsSending(true);
-                try {
-                    // Simular delay visual curto para feedback
-                    await new Promise(r => setTimeout(r, 500));
-
-                    // Dados da Empresa (Safe Read)
-                    const company = JSON.parse(localStorage.getItem('hefel_company_v3') || '{}');
-
-                    // Altura dinâmica estimada: base + itens
-                    const estimatedHeight = 120 + (printingInvoice.items?.length || 0) * 10;
-
-                    // Inicializar jsPDF (Direct Draw Mode - 100% Fiável)
-                    const doc = new jsPDF({
-                        orientation: 'portrait',
-                        unit: 'mm',
-                        format: [80, estimatedHeight]
-                    });
-
-                    // Configurações de Layout
-                    let y = 8;
-                    const left = 4;
-                    const right = 76;
-                    const centerX = 40;
-
-                    // Helpers Gráficos
-                    const centerText = (txt, yPos, size = 9, bold = false) => {
-                        doc.setFont("helvetica", bold ? "bold" : "normal");
-                        doc.setFontSize(size);
-                        doc.text(String(txt), centerX, yPos, { align: "center" });
-                    };
-
-                    const drawLine = (yPos) => {
-                        doc.setLineWidth(0.1);
-                        doc.line(left, yPos, right, yPos);
-                    };
-
-                    // === CABEÇALHO ===
-                    centerText((company.name || "HEFEL GYM").toUpperCase(), y, 12, true); y += 5;
-                    centerText(company.address || "Maputo, Moçambique", y, 8); y += 4;
-                    centerText(`NUIT: ${company.nuit || "N/A"}`, y, 8); y += 4;
-                    centerText(`Tel: ${company.contacts?.[0]?.value || "N/A"}`, y, 8); y += 6;
-
-                    drawLine(y); y += 4;
-
-                    // === INFO RECIBO ===
-                    centerText(printingInvoice.status === 'pago' ? "RECIBO DE PAGAMENTO" : "FATURA PENDENTE", y, 10, true); y += 5;
-
-                    doc.setFontSize(8);
-                    doc.setFont("helvetica", "normal");
-
-                    const pDate = new Date();
-                    doc.text(`Data: ${pDate.toLocaleDateString('pt-PT')} ${pDate.toLocaleTimeString().slice(0, 5)}`, left, y); y += 4;
-                    doc.text(`Doc #: ${printingInvoice.id || '---'} (v2.9D)`, left, y); y += 4;
-                    doc.text(`Cliente: ${(printingInvoice.client?.name || "Consumidor Final").substring(0, 25)}`, left, y); y += 5;
-
-                    drawLine(y); y += 4;
-
-                    // === ITENS ===
-                    doc.setFont("helvetica", "bold");
-                    doc.text("Qtd  Item", left, y);
-                    doc.text("Total", right, y, { align: "right" });
-                    y += 4;
-
-                    doc.setFont("helvetica", "normal");
-
-                    let total = 0;
-                    (printingInvoice.items || []).forEach(item => {
-                        const qty = item.qty || item.quantity || 1;
-                        const price = item.price || 0;
-                        const itemTotal = qty * price;
-                        total += itemTotal;
-
-                        const desc = item.description || item.name || "Item";
-
-                        // Item Line
-                        doc.text(`${qty}x  ${desc.substring(0, 22)}`, left, y);
-                        doc.text(itemTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
-                        y += 4;
-                    });
-
-                    y += 2;
-                    drawLine(y); y += 4;
-
-                    // === TOTAIS ===
-                    // IVA simples (se aplicável ao total)
-                    const ivaRate = company.ivaRate ? Number(company.ivaRate) : 0;
-                    const ivaVal = total * (ivaRate / 100);
-                    const grandTotal = total + ivaVal;
-
-                    doc.setFontSize(9);
-                    doc.text("Subtotal:", left, y);
-                    doc.text(total.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
-                    y += 4;
-
-                    if (ivaVal > 0) {
-                        doc.text(`IVA (${ivaRate}%):`, left, y);
-                        doc.text(ivaVal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }), right, y, { align: "right" });
-                        y += 4;
-                    }
-
-                    y += 1;
-                    doc.setFontSize(12);
-                    doc.setFont("helvetica", "bold");
-                    doc.text("TOTAL:", left, y);
-                    doc.text(grandTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2 }) + " MT", right, y, { align: "right" });
-                    y += 8;
-
-                    // === RODAPÉ ===
-                    centerText("Obrigado pela preferência!", y, 9, true); y += 4;
-                    centerText("Processado por Hefel Gym System", y, 7);
-
-                    // Salvar ficheiro
-                    doc.save(`Recibo_${printingInvoice.id || Date.now()}.pdf`);
-
-                    // Enviar para Bot
-                    const pdfBase64 = doc.output('datauristring');
+            // Pequeno delay para garantir que o modal visível renderizou
+            const timer = setTimeout(() => {
+                const element = document.getElementById('pos-receipt-content');
+                if (element) {
                     try {
-                        await sendToBot(printingInvoice, pdfBase64);
-                    } catch (e) { console.warn(e); }
+                        // Tentar download automático
+                        const opt = {
+                            margin: 0,
+                            filename: `Recibo_${printingInvoice.id}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, logging: false },
+                            jsPDF: { unit: 'mm', format: [80, 200] }
+                        };
 
-                } catch (err) {
-                    console.error("ERRO CRITICO PDF:", err);
-                    alert("Erro ao gerar recibo: " + err.message);
-                } finally {
-                    setPrintingInvoice(null);
-                    setIsSending(false);
+                        // Executar html2pdf
+                        html2pdf().set(opt).from(element).save().then(async () => {
+                            // Sucesso no Auto-Download
+                            // Tentar gerar base64 para o Bot em background
+                            try {
+                                const worker = html2pdf().set(opt).from(element).toPdf();
+                                const pdf = await worker.get('pdf');
+                                const base64 = pdf.output('datauristring');
+                                sendToBot(printingInvoice, base64);
+                            } catch (e) {
+                                console.warn("Erro ao enviar bot background:", e);
+                            }
+                        }).catch(err => {
+                            console.warn("Auto-download falhou (popup bloqueado?). User pode usar botões manuais.", err);
+                        });
+
+                    } catch (e) {
+                        console.error("Erro setup html2pdf:", e);
+                    }
                 }
-            };
-
-            generatePDF();
+            }, 800);
+            return () => clearTimeout(timer);
         }
     }, [printingInvoice]);
 
@@ -1004,28 +910,60 @@ const POS = () => {
                 </div>
             </div>
 
-            {/* Loading Overlay for Direct PDF Generation (Lightweight) */}
+            {/* Modal de Impressão / Recibo - VISIBLE & ROBUST */}
             {printingInvoice && (
                 <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    background: 'rgba(0,0,0,0.85)',
-                    zIndex: 9999999,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white'
+                    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                    background: 'rgba(0,0,0,0.9)', zIndex: 999999,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '10px'
                 }}>
-                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mb-4"></div>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>A imprimir recibo...</div>
-                </div>
-            )}
+                    <div style={{ background: 'white', padding: '10px', borderRadius: '8px', marginBottom: '20px', maxHeight: '70vh', overflow-y: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                         {/* Wrapper for PDF generation */}
+                         <div id="pos-receipt-content" style={{ width: '80mm', background: 'white', margin: '0 auto' }}>
+                             <InvoiceTemplate invoice={printingInvoice} isThermal={true} />
+                         </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap justify-center gap-4">
+                        <button 
+                            className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => setPrintingInvoice(null)}
+                        >
+                            <X size={20} /> Fechar
+                        </button>
+                        
+                        <button 
+                            className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => {
+                                const element = document.getElementById('pos-receipt-content');
+                                // Configuração robusta para html2pdf
+                                const opt = { 
+                                    margin: [0, 0, 0, 0], 
+                                    filename: `Recibo_${printingInvoice.id}.pdf`, 
+                                    image: { type: 'jpeg', quality: 0.98 },
+                                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                                    jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' } 
+                                };
+                                html2pdf().set(opt).from(element).save();
+                            }}
+                        >
+                             <Download size={20} /> Baixar PDF
+                        </button>
 
-            <style>{`
+                        <button 
+                            className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 flex items-center gap-2 shadow-lg"
+                            onClick={() => window.print()}
+                        >
+                            <Printer size={20} /> Imprimir (Browser)
+                        </button>
+                    </div>
+                    <p className="text-white mt-4 text-sm opacity-70 text-center">Se o download automático não iniciou, use os botões acima.</p>
+                </div>
+    )
+}
+
+<style>{`
                 .pos-page { height: calc(100vh - 100px); overflow: hidden; display: flex; flex-direction: column; padding-bottom: 2rem; }
                 .pos-container { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; height: 100%; padding-bottom: 1rem; }
                 
@@ -1140,7 +1078,7 @@ const POS = () => {
                     .pos-page { height: auto; overflow: visible; }
                 }
             `}</style>
-        </div>
+        </div >
     );
 };
 
