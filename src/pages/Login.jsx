@@ -29,27 +29,52 @@ const Login = () => {
         setLoading(true);
         setError('');
         try {
-            // Simplified login logic (keeping existing functionality but cleaned up)
-            let { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+            // STEP 1: Try direct database authentication against system_users table (Supabase)
+            // This is the source of truth for our staff accounts.
+            const { data: users, error: dbError } = await supabase
+                .from('system_users')
+                .select('*')
+                .eq('email', email.trim())
+                .eq('password', password) // Comparing directly as requested
+                .limit(1);
+
             let session = null;
-            if (!authError && data.user) {
-                session = { user: data.user.email, role: 'gym_admin', gymId: 'hefel_gym_v1' };
+
+            if (!dbError && users && users.length > 0) {
+                const user = users[0];
+                console.log("✅ Login Sucesso (Supabase DB):", user.name);
+                session = {
+                    user: user.name,
+                    role: user.role,
+                    gymId: user.gym_id || 'hefel_gym_v1',
+                    userId: user.id
+                };
             } else {
+                // STEP 2: Fallback to local API (only for local development/offline use)
+                console.log("🔍 DB Login falhou, tentando API Local...");
                 const res = await fetch(`${API_LOCAL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
-                });
-                const localData = await res.json();
-                if (res.ok && localData.user) {
-                    session = { user: localData.user.name, role: localData.user.role, gymId: localData.user.gymId };
+                }).catch(() => null);
+
+                if (res && res.ok) {
+                    const localData = await res.json();
+                    if (localData.user) {
+                        session = {
+                            user: localData.user.name,
+                            role: localData.user.role,
+                            gymId: localData.user.gymId
+                        };
+                    }
                 }
             }
+
             if (session) {
                 localStorage.setItem('gymar_session', JSON.stringify(session));
                 navigate('/dashboard');
             } else {
-                throw new Error('Credenciais inválidas.');
+                throw new Error('Credenciais inválidas ou utilizador não encontrado.');
             }
         } catch (err) {
             setError(err.message);
