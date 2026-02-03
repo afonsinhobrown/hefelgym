@@ -193,8 +193,27 @@ export const db = {
         },
         save: async (userData) => {
             const gymId = getAuthGymId();
-            const { error } = await supabase.from('system_users').upsert([{ ...userData, gym_id: gymId }]);
-            if (error) throw error;
+            // Mapeamento explícito para evitar erro de coluna não encontrada (snake_case)
+            const payload = {
+                id: userData.id || `USR${Date.now()}`,
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+                status: userData.status || 'active',
+                gym_id: gymId,
+                staff_id: userData.staffId || null // Converte staffId para staff_id
+            };
+
+            // Apenas envia a senha se ela foi preenchida (útil para edição)
+            if (userData.password) {
+                payload.password = userData.password;
+            }
+
+            const { error } = await supabase.from('system_users').upsert([payload]);
+            if (error) {
+                console.error("Erro ao salvar no Supabase:", error);
+                throw error;
+            }
         },
         delete: async (id) => {
             const { error } = await supabase.from('system_users').delete().eq('id', id);
