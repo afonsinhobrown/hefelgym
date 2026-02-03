@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
-
-const API_URL = 'https://hefelgym.onrender.com/api';
+export const API_LOCAL = 'https://hefelgym.onrender.com/api';
 
 export const db = {
     init: async () => { console.log("🚀 Frontend em Modo Cloud Puro"); },

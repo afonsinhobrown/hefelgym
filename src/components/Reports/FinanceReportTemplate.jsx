@@ -90,32 +90,33 @@ const FinanceReportTemplate = ({ summary, transactions, chartsData, period = 'Es
                         </tr>
                     </thead>
                     <tbody>
-                        const gross = Number(t.amount || 0);
-                        const net = gross / (1 + ivaRate / 100);
-                        const iva = gross - net;
+                        {transactions.map((t, i) => {
+                            const gross = Number(t.amount || 0);
+                            const net = gross / (1 + ivaRate / 100);
+                            const iva = gross - net;
 
-                        return (
-                        <tr key={i}>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>{t.date}</td>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}><strong>{t.client}</strong></td>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>{t.id}</td>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
-                                <span style={{
-                                    padding: '4px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold',
-                                    background: t.status === 'pago' ? '#dcfce7' : '#fef9c3',
-                                    color: t.status === 'pago' ? '#166534' : '#854d0e'
-                                }}>
-                                    {t.status.toUpperCase()}
-                                </span>
-                            </td>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b' }}>
-                                {iva.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
-                            </td>
-                            <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontWeight: 'bold' }}>
-                                {gross.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
-                            </td>
-                        </tr>
-                        );
+                            return (
+                                <tr key={i}>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>{t.date}</td>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}><strong>{t.client}</strong></td>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>{t.id}</td>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                                        <span style={{
+                                            padding: '4px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold',
+                                            background: t.status === 'pago' ? '#dcfce7' : '#fef9c3',
+                                            color: t.status === 'pago' ? '#166534' : '#854d0e'
+                                        }}>
+                                            {t.status.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b' }}>
+                                        {iva.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
+                                    </td>
+                                    <td style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontWeight: 'bold' }}>
+                                        {gross.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
+                                    </td>
+                                </tr>
+                            );
                         })}
                     </tbody>
                 </table>
