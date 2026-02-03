@@ -14,7 +14,7 @@ const AdminUsers = () => {
     useEffect(() => {
         const sess = JSON.parse(localStorage.getItem('gymar_session') || '{}');
         setSession(sess);
-        fetchUsers(sess.gymId);
+        fetchUsers();
         loadStaff(); // Load staff for the dropdown
     }, []);
 
@@ -30,20 +30,14 @@ const AdminUsers = () => {
         }
     };
 
-    const fetchUsers = async (gymId) => {
+    const fetchUsers = async () => {
         try {
-            const baseUrl = API_LOCAL || 'http://localhost:3001/api';
-            const targetUrl = gymId ? `${baseUrl}/system-users?gymId=${gymId}` : `${baseUrl}/system-users`;
-
-            const res = await fetch(targetUrl).catch(() => null);
-            if (res && res.ok) {
-                const data = await res.json();
-                setUsers(data);
-            } else {
-                console.warn("Falha ao carregar utilizadores do servidor.");
-            }
+            setLoading(true);
+            await db.init();
+            const data = await db.system_users.getAll();
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error(error);
+            console.error("Erro ao carregar utilizadores:", error);
         } finally {
             setLoading(false);
         }
@@ -52,58 +46,30 @@ const AdminUsers = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            const baseUrl = API_LOCAL || 'http://localhost:3001/api';
-            const method = formData.id ? 'PUT' : 'POST';
-            const url = formData.id ? `${baseUrl}/system-users/${formData.id}` : `${baseUrl}/system-users`;
-
-            const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, gymId: session.gymId })
-            });
-
-            if (res.ok) {
-                alert(formData.id ? 'Utilizador atualizado!' : 'Utilizador criado!');
-                setShowModal(false);
-                setFormData({ id: null, name: '', email: '', password: '', role: 'operator', status: 'active' });
-                fetchUsers(session.gymId);
-            } else {
-                const errData = await res.json().catch(() => ({}));
-                alert('Erro: ' + (errData.error || 'Falha na operação'));
-            }
+            await db.system_users.save(formData);
+            alert(formData.id ? 'Utilizador atualizado!' : 'Utilizador criado!');
+            setShowModal(false);
+            setFormData({ id: null, name: '', email: '', password: '', role: 'operator', status: 'active' });
+            fetchUsers();
         } catch (error) {
-            alert('Erro de conexão.');
+            alert('Erro ao salvar utilizador: ' + error.message);
         }
     };
 
     const handleDelete = async (id) => {
         if (!window.confirm("Tem a certeza que deseja eliminar este utilizador?")) return;
         try {
-            const baseUrl = API_LOCAL || 'http://localhost:3001/api';
-            const res = await fetch(`${baseUrl}/system-users/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                fetchUsers(session.gymId);
-            } else {
-                alert("Erro ao eliminar (Verifique se o servidor está atualizado).");
-            }
-        } catch (e) { alert("Erro ao eliminar."); }
+            await db.system_users.delete(id);
+            fetchUsers();
+        } catch (e) { alert("Erro ao eliminar: " + e.message); }
     };
 
     const handleToggleStatus = async (user) => {
         const newStatus = user.status === 'active' ? 'inactive' : 'active';
-        // if (!window.confirm(`Deseja ${newStatus === 'active' ? 'ATIVAR' : 'DESATIVAR'} o acesso de "${user.name}"?`)) return;
-
         try {
-            const baseUrl = API_LOCAL || 'http://localhost:3001/api';
-            const res = await fetch(`${baseUrl}/system-users/${user.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...user, status: newStatus }) // Mantém outros dados, muda status
-            });
-
-            if (res.ok) fetchUsers(session.gymId);
-            else alert("Erro ao atualizar status.");
-        } catch (e) { alert("Erro de conexão."); }
+            await db.system_users.save({ ...user, status: newStatus });
+            fetchUsers();
+        } catch (e) { alert("Erro ao atualizar status: " + e.message); }
     };
 
     const openEdit = (user) => {

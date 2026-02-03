@@ -533,5 +533,46 @@ export const db = {
                 return db.inventory.processSale(clientId, items, status, { method: paymentMethod });
             }
         }
+    },
+    system_users: {
+        getAll: async () => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            if (USE_LOCAL_SERVER) return api.get(`system-users?gymId=${gymId}`);
+
+            const { data, error } = await supabase.from('system_users').select('*').eq('gym_id', gymId);
+            if (error || !data || data.length === 0) {
+                // Se falhar pelo gym_id ou se data vier vazio, tenta sem filtro para garantir que os Admins aparecem
+                const { data: allData } = await supabase.from('system_users').select('*');
+                return allData || [];
+            }
+            return data || [];
+        },
+        save: async (userData) => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const payload = { ...userData, gym_id: gymId };
+            delete payload.password; // Por segurança, não enviar password em updates se vazia
+
+            if (USE_LOCAL_SERVER) {
+                const method = userData.id ? 'PUT' : 'POST';
+                const endpoint = userData.id ? `system-users/${userData.id}` : 'system-users';
+                return api.post(endpoint, { ...userData, gymId }); // O backend local usa POST p/ criar/update muitas vezes
+            }
+
+            if (userData.id) {
+                const updatePayload = { ...payload };
+                if (userData.password) updatePayload.password = userData.password;
+                await supabase.from('system_users').update(updatePayload).eq('id', userData.id);
+            } else {
+                await supabase.from('system_users').insert({
+                    ...payload,
+                    id: userData.id || `USR${Date.now()}`,
+                    password: userData.password || '123456'
+                });
+            }
+        },
+        delete: async (id) => {
+            if (USE_LOCAL_SERVER) return api.delete(`system-users/${id}`);
+            await supabase.from('system_users').delete().eq('id', id);
+        }
     }
 };
