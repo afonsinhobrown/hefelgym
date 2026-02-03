@@ -191,27 +191,23 @@ const Settings = () => {
         }
 
         const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
-        if (!session.email) return setPwdStatus({ type: 'error', msg: 'Sessão inválida.' });
+        if (!session.email || !session.userId) return setPwdStatus({ type: 'error', msg: 'Sessão inválida.' });
 
         try {
-            const res = await fetch('http://localhost:3001/api/system-users/change-password', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: session.email,
-                    currentPassword: pwdData.current,
-                    newPassword: pwdData.next
-                })
+            // Mudança para Cloud-Only: Grava direto no Supabase via service db
+            await db.system_users.save({
+                id: session.userId,
+                name: session.user,
+                email: session.email,
+                role: session.role,
+                password: pwdData.next // A nova senha
             });
-            const data = await res.json();
-            if (res.ok) {
-                setPwdStatus({ type: 'success', msg: 'Palavra-passe atualizada!' });
-                setPwdData({ current: '', next: '', confirm: '' });
-            } else {
-                setPwdStatus({ type: 'error', msg: data.error || 'Erro ao atualizar.' });
-            }
+
+            setPwdStatus({ type: 'success', msg: 'Palavra-passe atualizada com sucesso!' });
+            setPwdData({ current: '', next: '', confirm: '' });
         } catch (e) {
-            setPwdStatus({ type: 'error', msg: 'Erro de conexão.' });
+            console.error("Erro ao mudar senha:", e);
+            setPwdStatus({ type: 'error', msg: 'Falha ao atualizar senha: ' + e.message });
         }
     };
 
