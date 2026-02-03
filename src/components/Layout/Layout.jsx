@@ -2,39 +2,71 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { db } from '../../services/db';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Lock, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 const Layout = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [pwdData, setPwdData] = useState({ next: '', confirm: '' });
+  const [pwdStatus, setPwdStatus] = useState({ type: '', msg: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Monitorizar Sincronização (Bloqueio de Ecrã)
   useEffect(() => {
     const checkSync = async () => {
-      const syncing = await db.checkSyncStatus();
-      setIsSyncing(syncing);
+      try {
+        if (db.checkSyncStatus) {
+          const syncing = await db.checkSyncStatus();
+          setIsSyncing(syncing);
+        }
+      } catch (e) { }
     };
-
-    const interval = setInterval(checkSync, 2000); // Check a cada 2s
+    const interval = setInterval(checkSync, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // PROTEÇÃO DE ROTA (SAAS AUTH)
-  // Se não houver sessão ativa, redireciona para Login
+  // PROTEÇÃO DE ROTA
   let session = null;
   try {
     const sessionData = localStorage.getItem('gymar_session');
-    if (sessionData) {
-      session = JSON.parse(sessionData);
-    }
-  } catch (e) {
-    console.error("Sessão inválida", e);
-  }
+    if (sessionData) session = JSON.parse(sessionData);
+  } catch (e) { console.error("Sessão inválida", e); }
 
-  // Se sessão inválida ou inexistente, manda para LOGIN
   if (!session || !session.user) {
     return <Navigate to="/login" replace />;
   }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwdStatus({ type: '', msg: '' });
+
+    if (pwdData.next.length < 4) {
+      return setPwdStatus({ type: 'error', msg: 'A senha deve ter pelo menos 4 caracteres.' });
+    }
+    if (pwdData.next !== pwdData.confirm) {
+      return setPwdStatus({ type: 'error', msg: 'As novas senhas não coincidem.' });
+    }
+
+    setIsSaving(true);
+    try {
+      await db.system_users.save({
+        id: session.userId,
+        name: session.user,
+        email: session.email,
+        role: session.role,
+        password: pwdData.next
+      });
+
+      setPwdStatus({ type: 'success', msg: 'Senha atualizada com sucesso!' });
+      setPwdData({ next: '', confirm: '' });
+      setTimeout(() => setShowProfileModal(false), 2000);
+    } catch (e) {
+      setPwdStatus({ type: 'error', msg: 'Falha ao atualizar: ' + e.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <>
@@ -51,11 +83,11 @@ const Layout = () => {
               </button>
               <div className="greeting">
                 <h1>Olá, {session.user}</h1>
-                <p>{session.role === 'super_admin' ? 'Painel de Gestão Global' : 'Painel de Controlo'}</p>
+                <p>{session.role === 'gym_admin' ? 'Administrador do Ginásio' : 'Membro da Equipa'}</p>
               </div>
             </div>
-            <div className="user-profile">
-              <div className="avatar">A</div>
+            <div className="user-profile" onClick={() => { setPwdStatus({ type: '', msg: '' }); setShowProfileModal(true); }} style={{ cursor: 'pointer' }} title="Mudar Senha">
+              <div className="avatar">{session.user?.charAt(0).toUpperCase()}</div>
             </div>
           </header>
           <div className="page-content">
@@ -64,7 +96,43 @@ const Layout = () => {
         </main>
       </div>
 
-      {/* DISCREET SYNC INDICATOR (Replaces full blocker) */}
+      {/* MODAL DE PERFIL / SENHA */}
+      {showProfileModal && (
+        <div className="profile-modal-overlay">
+          <div className="profile-modal card glass">
+            <div className="modal-header">
+              <h3><Lock size={18} /> Segurança da Conta</h3>
+              <button className="close-btn" onClick={() => setShowProfileModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <p className="user-info">Utilizador: <strong>{session.user}</strong> ({session.email})</p>
+
+              <form onSubmit={handlePasswordChange}>
+                <div className="input-group">
+                  <label>Nova Palavra-passe</label>
+                  <input type="password" value={pwdData.next} onChange={e => setPwdData({ ...pwdData, next: e.target.value })} placeholder="Digite a nova senha" required disabled={isSaving} />
+                </div>
+                <div className="input-group">
+                  <label>Confirmar Nova Senha</label>
+                  <input type="password" value={pwdData.confirm} onChange={e => setPwdData({ ...pwdData, confirm: e.target.value })} placeholder="Repita a nova senha" required disabled={isSaving} />
+                </div>
+
+                {pwdStatus.msg && (
+                  <div className={`status-msg ${pwdStatus.type}`}>
+                    {pwdStatus.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                    {pwdStatus.msg}
+                  </div>
+                )}
+
+                <button type="submit" className="btn-primary" disabled={isSaving}>
+                  {isSaving ? 'A guardar...' : 'Atualizar Senha'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isSyncing && (
         <div className="sync-pill-indicator">
           <RefreshCw size={14} className="spin-icon" />
@@ -73,178 +141,71 @@ const Layout = () => {
       )}
 
       <style>{`
-        .sync-pill-indicator {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--primary);
-            padding: 8px 16px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 600;
-            z-index: 10000;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            animation: slideInUp 0.3s ease-out;
-        }
+                .profile-modal-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0,0,0,0.8);
+                    backdrop-filter: blur(8px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    padding: 20px;
+                }
+                .profile-modal {
+                    width: 100%;
+                    max-width: 400px;
+                    padding: 24px !important;
+                    border: 1px solid var(--border) !important;
+                }
+                .modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                .modal-header h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.1rem; }
+                .close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; }
+                
+                .user-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; border-bottom: 1px solid var(--border); pb: 10px; }
+                
+                .input-group { margin-bottom: 16px; }
+                .input-group label { display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; font-weight: 700; }
+                .input-group input { width: 100%; background: var(--bg-dark); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; outline: none; transition: border 0.2s; }
+                .input-group input:focus { border-color: var(--primary); }
+                
+                .status-msg { padding: 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+                .status-msg.success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+                .status-msg.error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+                
+                .btn-primary { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+                .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+                .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        @keyframes slideInUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .spin-icon { 
-            color: var(--primary);
-            animation: spin 1.5s linear infinite; 
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        
-        .app-layout {
-          display: flex;
-          min-height: 100vh;
-        }
-
-        .main-content {
-          flex: 1;
-          margin-left: 280px; /* Alinhado com a largura da sidebar */
-          background-color: var(--bg-dark);
-          min-height: 100vh;
-          transition: margin 0.3s ease;
-          position: relative;
-          z-index: 10;
-        }
-
-        .top-header {
-          height: 80px;
-          padding: 0 2rem;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          position: sticky;
-          top: 0;
-          z-index: 40;
-          border-bottom: 1px solid var(--border);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .mobile-toggle {
-            display: none;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .hamburger, .hamburger::before, .hamburger::after {
-            content: '';
-            display: block;
-            background: var(--text-main);
-            height: 2px;
-            width: 20px;
-            position: absolute;
-            left: 10px;
-            transition: all 0.2s ease;
-        }
-        .hamburger { top: 18px; }
-        .hamburger::before { top: -6px; left: 0; }
-        .hamburger::after { top: 6px; left: 0; }
-
-        .greeting h1 {
-          font-size: 1.25rem;
-          margin-bottom: 0.25rem;
-        }
-
-        .greeting p {
-          color: var(--text-muted);
-          font-size: 0.875rem;
-        }
-
-        .avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, var(--primary) 0%, #ea580c 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          color: white;
-          border: 2px solid var(--bg-card);
-        }
-
-        .page-content {
-          padding: 2rem 2rem 10rem 2rem;
-          max-width: 1600px;
-          margin: 0 auto;
-        }
-
-        .sidebar-wrapper {
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 280px;
-            z-index: 50;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            z-index: 45;
-        }
-
-        /* Responsive Breakpoints */
-        @media (max-width: 1024px) {
-            .main-content {
-                margin-left: 0;
-            }
-            .sidebar-wrapper {
-                transform: translateX(-280px);
-                left: 0;
-            }
-            .sidebar-wrapper.open {
-                transform: translateX(0);
-            }
-            .mobile-toggle {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .sidebar-overlay {
-                display: block;
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.3s ease;
-            }
-            .app-layout.mobile-open .sidebar-overlay {
-                opacity: 1;
-                pointer-events: auto;
-            }
-            .top-header {
-                padding: 0 1rem;
-            }
-            .page-content {
-                padding: 1.5rem 1rem 8rem 1rem;
-            }
-        }
-      `}</style>
+                /* Layout Base Styles */
+                .app-layout { display: flex; min-height: 100vh; }
+                .main-content { flex: 1; margin-left: 280px; background-color: var(--bg-dark); min-height: 100vh; transition: margin 0.3s ease; position: relative; z-index: 10; }
+                .top-header { height: 80px; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--border); background: rgba(var(--bg-dark-rgb), 0.7); backdrop-filter: blur(12px); }
+                .header-left { display: flex; align-items: center; gap: 1rem; }
+                .mobile-toggle { display: none; background: rgba(255,255,255,0.05); border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 8px; cursor: pointer; position: relative; }
+                .hamburger, .hamburger::before, .hamburger::after { content: ''; display: block; background: var(--text-main); height: 2px; width: 20px; position: absolute; left: 10px; transition: all 0.2s ease; }
+                .hamburger { top: 18px; } .hamburger::before { top: -6px; left: 0; } .hamburger::after { top: 6px; left: 0; }
+                .greeting h1 { font-size: 1.25rem; margin-bottom: 0.25rem; color: white; }
+                .greeting p { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
+                .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; border: 2px solid rgba(255,255,255,0.1); transition: transform 0.2s; }
+                .user-profile:hover .avatar { transform: scale(1.1); }
+                .page-content { padding: 2rem; max-width: 1600px; margin: 0 auto; }
+                .sidebar-wrapper { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 50; }
+                
+                @media (max-width: 1024px) {
+                    .main-content { margin-left: 0; }
+                    .sidebar-wrapper { transform: translateX(-280px); transition: transform 0.3s; }
+                    .sidebar-wrapper.open { transform: translateX(0); }
+                    .mobile-toggle { display: flex; justify-content: center; align-items: center; }
+                    .top-header { padding: 0 1rem; }
+                    .page-content { padding: 1rem; }
+                }
+            `}</style>
     </>
   );
 };
