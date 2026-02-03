@@ -1238,524 +1238,521 @@ app.post('/api/whatsapp/send', async (req, res) => {
 app.post('/api/access/open', async (req, res) => { await openTurnstile(req.body.direction); res.json({ status: 'opened' }); });
 
 // Clients
-app.get('/api/clients', (req, res) => {
-    const query = `
-        SELECT
-            *,
-            CASE
-                WHEN name GLOB '*[a-zA-Z]*' THEN 1  -- Nomes reais primeiro
-                ELSE 2                               -- Números depois
-            END as sort_priority
-        FROM clients
-        ORDER BY sort_priority ASC, created_at ASC
-    `;
-    db.all(query, [], (err, rows) => {
-        app.get('/api/clients', async (req, res) => {
-            if (IS_CLOUD && supabase) {
-                console.log("☁️ Buscando clientes da nuvem...");
-                const { data, error } = await supabase.from('clients').select('*').order('name', { ascending: true });
-                if (error) {
-                    console.error("Erro ao buscar clientes do Supabase:", error.message);
-                    return res.status(500).json({ error: error.message });
-                }
-                return res.json(data || []);
-            }
-            db.all("SELECT * FROM clients ORDER BY name ASC", [], (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json(rows || []);
-            });
+// Clients
+app.get('/api/clients', async (req, res) => {
+    if (IS_CLOUD && supabase) {
+        console.log("☁️ Buscando clientes da nuvem...");
+        const { data, error } = await supabase.from('clients').select('*').order('name', { ascending: true });
+        if (error) {
+            console.error("Erro ao buscar clientes do Supabase:", error.message);
+            return res.status(500).json({ error: error.message });
+        }
+        return res.json(data || []);
+    }
+    db.all("SELECT * FROM clients ORDER BY name ASC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/clients', async (req, res) => {
+    const { id, name, phone, email, nuit, status, photo_url, plan_id } = req.body;
+    try {
+        const gymId = await getGymId() || 'hefel_gym_v1';
+        const { error } = await supabase.from('clients').upsert({
+            id, name, phone, email, nuit, status, photo_url, plan_id, gym_id: gymId, created_at: new Date().toISOString()
         });
+        if (error) throw error;
+        res.json({ id, status: 'saved' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-        app.get('/api/plans', (req, res) => {
-            db.all("SELECT * FROM plans ORDER BY name ASC", [], (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json(rows || []);
-            });
+app.get('/api/plans', (req, res) => {
+    db.all("SELECT * FROM plans ORDER BY name ASC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// Inventory
+app.get('/api/inventory', (req, res) => db.all("SELECT * FROM products", [], (err, rows) => res.json(rows || [])));
+app.post('/api/inventory', (req, res) => {
+    const { id, name, price, cost_price, stock, category, photo_url, location_id } = req.body;
+    db.run(`INSERT INTO products (id, name, price, cost_price, stock, category, photo_url, location_id, synced) VALUES (?,?,?,?,?,?,?,?,0)`, [id, name, price, cost_price || 0, stock, category, photo_url, location_id], (err) => {
+        if (err) res.status(500).json(err);
+        else {
+            res.json({ status: 'ok' });
+            setTimeout(syncToCloud, 500); // Trigger immediate sync
+        }
+    });
+});
+app.put('/api/inventory/:id', (req, res) => {
+    const { name, price, cost_price, stock, category, photo_url, location_id } = req.body;
+    db.run("UPDATE products SET name = ?, price = ?, cost_price = ?, stock = ?, category = ?, photo_url = ?, location_id = ?, synced = 0 WHERE id = ?", [name, price, cost_price || 0, stock, category, photo_url, location_id, req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
+    });
+});
+app.delete('/api/inventory/:id', (req, res) => {
+    db.run("DELETE FROM products WHERE id = ?", [req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else { res.json({ status: 'ok' }); }
+    });
+});
+
+// Equipment
+app.get('/api/equipment', (req, res) => db.all("SELECT * FROM equipment", [], (err, rows) => res.json(rows || [])));
+app.post('/api/equipment', (req, res) => {
+    const { id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url } = req.body;
+    db.run(`INSERT INTO equipment (id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url, synced) VALUES (?,?,?,?,?,?,?,?,?,?,0)`,
+        [id, name, description, location_id, status || 'working', condition || 'Good', cost || 0, purchase_date, gym_id || 'hefel_gym_v1', photo_url], (err) => {
+            if (err) res.status(500).json(err);
+            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
         });
-
-        // Inventory
-        app.get('/api/inventory', (req, res) => db.all("SELECT * FROM products", [], (err, rows) => res.json(rows || [])));
-        app.post('/api/inventory', (req, res) => {
-            const { id, name, price, cost_price, stock, category, photo_url, location_id } = req.body;
-            db.run(`INSERT INTO products (id, name, price, cost_price, stock, category, photo_url, location_id, synced) VALUES (?,?,?,?,?,?,?,?,0)`, [id, name, price, cost_price || 0, stock, category, photo_url, location_id], (err) => {
-                if (err) res.status(500).json(err);
-                else {
-                    res.json({ status: 'ok' });
-                    setTimeout(syncToCloud, 500); // Trigger immediate sync
-                }
-            });
+});
+app.put('/api/equipment/:id', (req, res) => {
+    const { name, description, location_id, status, condition, cost, purchase_date, photo_url } = req.body;
+    db.run(`UPDATE equipment SET name=?, description=?, location_id=?, status=?, condition=?, cost=?, purchase_date=?, photo_url=?, synced=0 WHERE id=?`,
+        [name, description, location_id, status, condition, cost, purchase_date, photo_url, req.params.id], (err) => {
+            if (err) res.status(500).json(err);
+            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
         });
-        app.put('/api/inventory/:id', (req, res) => {
-            const { name, price, cost_price, stock, category, photo_url, location_id } = req.body;
-            db.run("UPDATE products SET name = ?, price = ?, cost_price = ?, stock = ?, category = ?, photo_url = ?, location_id = ?, synced = 0 WHERE id = ?", [name, price, cost_price || 0, stock, category, photo_url, location_id, req.params.id], (err) => {
-                if (err) res.status(500).json(err);
-                else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
-            });
-        });
-        app.delete('/api/inventory/:id', (req, res) => {
-            db.run("DELETE FROM products WHERE id = ?", [req.params.id], (err) => {
-                if (err) res.status(500).json(err);
-                else { res.json({ status: 'ok' }); }
-            });
-        });
-
-        // Equipment
-        app.get('/api/equipment', (req, res) => db.all("SELECT * FROM equipment", [], (err, rows) => res.json(rows || [])));
-        app.post('/api/equipment', (req, res) => {
-            const { id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url } = req.body;
-            db.run(`INSERT INTO equipment (id, name, description, location_id, status, condition, cost, purchase_date, gym_id, photo_url, synced) VALUES (?,?,?,?,?,?,?,?,?,?,0)`,
-                [id, name, description, location_id, status || 'working', condition || 'Good', cost || 0, purchase_date, gym_id || 'hefel_gym_v1', photo_url], (err) => {
-                    if (err) res.status(500).json(err);
-                    else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
-                });
-        });
-        app.put('/api/equipment/:id', (req, res) => {
-            const { name, description, location_id, status, condition, cost, purchase_date, photo_url } = req.body;
-            db.run(`UPDATE equipment SET name=?, description=?, location_id=?, status=?, condition=?, cost=?, purchase_date=?, photo_url=?, synced=0 WHERE id=?`,
-                [name, description, location_id, status, condition, cost, purchase_date, photo_url, req.params.id], (err) => {
-                    if (err) res.status(500).json(err);
-                    else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
-                });
-        });
-        app.delete('/api/equipment/:id', (req, res) => {
-            db.run("DELETE FROM equipment WHERE id = ?", [req.params.id], (err) => {
-                if (err) res.status(500).json(err);
-                else res.json({ status: 'ok' });
-            });
-        });
-
-        // Locations
-        app.get('/api/locations', (req, res) => db.all("SELECT * FROM locations", [], (err, rows) => res.json(rows || [])));
-        app.post('/api/locations', (req, res) => {
-            const { id, name, gym_id } = req.body;
-            db.run(`INSERT INTO locations (id, name, gym_id) VALUES (?,?,?)`, [id, name, gym_id || 'hefel_gym_v1'], (err) => {
-                if (err) res.status(500).json(err);
-                else res.json({ status: 'ok' });
-            });
-        });
-
-        // Financial / Expenses
-        app.get('/api/expenses/products', (req, res) => {
-            db.all("SELECT * FROM product_expenses ORDER BY date DESC", [], (err, rows) => res.json(rows || []));
-        });
-
-        app.post('/api/expenses/products', (req, res) => {
-            const { product_id, product_name, quantity, unit_cost, supplier } = req.body;
-            const total_cost = quantity * unit_cost;
-            const date = new Date().toISOString();
-            const id = `PEXP${Date.now()}`;
-
-            db.serialize(() => {
-                db.run("BEGIN TRANSACTION");
-                db.run(`INSERT INTO product_expenses (id, product_id, product_name, quantity, unit_cost, total_cost, date, supplier, synced) VALUES (?,?,?,?,?,?,?,?,0)`,
-                    [id, product_id, product_name, quantity, unit_cost, total_cost, date, supplier], (err) => {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            return res.status(500).json(err);
-                        }
-                        // Update stock and cost_price (moving average could be better, but let's keep it simple: use last cost)
-                        db.run("UPDATE products SET stock = stock + ?, cost_price = ?, synced = 0 WHERE id = ?", [quantity, unit_cost, product_id], (err) => {
-                            if (err) {
-                                db.run("ROLLBACK");
-                                return res.status(500).json(err);
-                            }
-                            db.run("COMMIT");
-                            res.json({ status: 'ok', id });
-                        });
-                    });
-            });
-        });
-
-        app.get('/api/expenses/gym', (req, res) => {
-            const { gymId } = req.query;
-            const sql = gymId ? "SELECT * FROM gym_expenses WHERE gym_id = ? ORDER BY date DESC" : "SELECT * FROM gym_expenses ORDER BY date DESC";
-            const params = gymId ? [gymId] : [];
-
-            db.all(sql, params, (err, rows) => res.json(rows || []));
-        });
-
-        app.post('/api/expenses/gym', (req, res) => {
-            const { title, description, amount, category, payment_method, responsible, status, is_fixed, gym_id } = req.body;
-            const date = new Date().toISOString();
-            const id = `EXP${Date.now()}`;
-            const targetGymId = gym_id || 'hefel_gym_v1';
-
-            db.run(`INSERT INTO gym_expenses (id, title, description, amount, category, date, payment_method, responsible, status, is_fixed, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,?,0)`,
-                [id, title || description, description, amount, category, date, payment_method, responsible, status || 'pago', is_fixed || 0, targetGymId], (err) => {
-                    if (err) res.status(500).json(err);
-                    else res.json({ status: 'ok', id });
-                });
-        });
-
-        // Instructors / Staff
-        app.get('/api/instructors', (req, res) => db.all("SELECT * FROM instructors ORDER BY name ASC", [], (err, rows) => res.json(rows || [])));
-
-        app.post('/api/instructors', (req, res) => {
-            const { id, name, phone, email, specialties, contract_type, commission, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary } = req.body;
-            db.run(`INSERT INTO instructors (id, name, phone, email, specialties, contract_type, commission, status, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary, synced) VALUES (?,?,?,?,?,?,?, 'active', ?,?,?,?,?,?,?, 0)`,
-                [id, name, phone, email, specialties, contract_type, commission, role || contract_type, base_salary || 0, bonus || 0, inss_discount || 0, irt_discount || 0, other_deductions || 0, net_salary || 0],
-                (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ id, status: 'saved' });
-                    setTimeout(syncToCloud, 500);
-                }
-            );
-        });
-
-        app.put('/api/instructors/:id', (req, res) => {
-            const { name, description, location_id, status, condition, cost, purchase_date, photo_url } = req.body;
-            db.run(`UPDATE equipment SET name=?, description=?, location_id=?, status=?, condition=?, cost=?, purchase_date=?, photo_url=?, synced=0 WHERE id=?`,
-                [name, description, location_id, status, condition, cost, purchase_date, photo_url, req.params.id], (err) => {
-                    if (err) res.status(500).json(err);
-                    else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
-                });
-        });
-
-        app.get('/api/instructors/:id/history', (req, res) => {
-            db.all("SELECT * FROM salary_history WHERE instructor_id = ? ORDER BY change_date DESC", [req.params.id], (err, rows) => {
-                if (err) res.status(500).json(err);
-                else res.json(rows || []);
-            });
-        });
-
-        app.delete('/api/instructors/:id', (req, res) => {
-            db.run("DELETE FROM instructors WHERE id = ?", [req.params.id], (err) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ status: 'deleted' });
-            });
-        });
-        app.delete('/api/clients/:id', (req, res) => {
-            db.run("DELETE FROM clients WHERE id = ?", [req.params.id], (err) => {
-                if (err) res.status(500).json(err);
-                else { res.json({ status: 'ok' }); }
-            });
-        });
-
-        // Hardware & Access Control
-        app.get('/api/hardware/devices', (req, res) => {
-            db.all("SELECT * FROM access_devices", [], (err, rows) => res.json(rows || []));
-        });
-
-        app.post('/api/hardware/devices', (req, res) => {
-            const { name, ip, port, username, password, type } = req.body;
-            db.run(`INSERT INTO access_devices (id, name, ip, port, username, password, type) VALUES (?,?,?,?,?,?,?)`,
-                [`DEV${Date.now()}`, name, ip, port, username, password, type],
-                (err) => {
-                    if (err) res.status(500).json(err);
-                    else res.json({ status: 'ok' });
-                }
-            );
-        });
-
-        app.delete('/api/hardware/devices/:id', (req, res) => {
-            db.run("DELETE FROM access_devices WHERE id = ?", [req.params.id], (err) => {
-                if (err) res.status(500).json(err);
-                else res.json({ status: 'ok' });
-            });
-        });
-        // ISAPI HANDLER & SYNC
-        // ISAPI HANDLER & SYNC
-
-        // ISAPI HANDLER & SYNC (With Digest Auth Support)
-        const fs = require('fs');
-        const https = require('https');
-        const http = require('http'); // Adicionado para o requestISAPI
-
-        const requestISAPI = async (device, method, path, body = null, contentType = 'application/xml') => {
-            const log = (msg) => {
-                const line = `[${new Date().toISOString()}] ${msg}\n`;
-                console.log(msg);
-                fs.appendFileSync('server_debug.log', line);
-            };
-
-            // Detectar https
-            const isHttps = device.port === 443 || (device.protocol && device.protocol.includes('https'));
-            const requestModule = isHttps ? https : http;
-
-            const doRequest = (authHeader = null) => {
-                return new Promise((resolve, reject) => {
-                    const options = {
-                        hostname: device.ip,
-                        port: device.port || (isHttps ? 443 : 80),
-                        path: path,
-                        method: method,
-                        headers: {
-                            'Content-Type': contentType,
-                            'Content-Length': body ? Buffer.byteLength(body) : 0
-                        },
-                        rejectUnauthorized: false, // Aceitar certificados auto-assinados da Hikvision
-                        timeout: 8000
-                    };
-
-                    // Override Content-Type if explicitly passed or JSON detected
-                    if (contentType) {
-                        options.headers['Content-Type'] = contentType;
-                    } else if (body && typeof body === 'string' && body.trim().startsWith('{')) {
-                        options.headers['Content-Type'] = 'application/json';
-                    }
-
-                    if (authHeader) options.headers['Authorization'] = authHeader;
-
-                    const protocolStr = isHttps ? 'https' : 'http';
-
-                    // Detailed Logging
-                    console.log('=== REQUEST DETAILS ===');
-                    console.log('URL:', `${protocolStr}://${device.ip}:${options.port}${path}`);
-                    console.log('Method:', method);
-                    console.log('Headers:', JSON.stringify(options.headers, null, 2));
-                    console.log('Body Preview:', body ? body.substring(0, 200) : 'NO BODY');
-                    console.log('=====================\n');
-
-                    log(`Make Request: ${method} ${protocolStr}://${device.ip}:${options.port}${path} (Auth: ${authHeader ? 'Yes' : 'No'})`);
-
-                    const req = requestModule.request(options, (res) => {
-                        let data = '';
-                        res.on('data', chunk => data += chunk);
-                        res.on('end', () => {
-                            log(`Response: ${res.statusCode} Headers: ${JSON.stringify(res.headers)} BodySnippet: ${data.substring(0, 100)}...`);
-                            resolve({ statusCode: res.statusCode, headers: res.headers, data });
-                        });
-                    });
-
-                    req.on('error', (e) => {
-                        log(`Request Error: ${e.message}`);
-                        reject(e);
-                    });
-                    if (body) req.write(body);
-                    req.end();
-                });
-            };
-
-            // 1. Tentar primeiro SEM Auth (mas com body)
-            let response = await doRequest(null);
-
-            // Se receber 401, processar o desafio Digest
-            if (response.statusCode === 401) {
-                const authHeader = response.headers['www-authenticate'];
-
-                if (!authHeader) {
-                    log(`[ISAPI] 401 mas SEM header 'www-authenticate'. Possível erro de PERMISSÃO ou HTTPS.`);
-                    throw new Error("ISAPI 401: Falha de Autenticação/Permissão. Verifique se o usuário tem permissão 'Remote Door Control'.");
-                }
-
-                if (authHeader && authHeader.toLowerCase().startsWith('digest')) {
-                    log(`[ISAPI] 401 Detectado. Header: ${authHeader}`);
-
-                    // Parse Challenge
-                    const challenge = {};
-                    const re = /(\w+)=("[^"]*"|[^,]*)/g;
-                    let match;
-                    while (match = re.exec(authHeader)) {
-                        challenge[match[1]] = match[2].replace(/^"|"$/g, '');
-                    }
-
-                    const realm = challenge.realm;
-                    const nonce = challenge.nonce;
-                    const qop = challenge.qop;
-                    const opaque = challenge.opaque;
-                    const algorithm = challenge.algorithm || 'MD5';
-
-                    // Calculate Digest
-                    const crypto = require('crypto'); // Adicionado para o requestISAPI
-                    const md5 = (str) => crypto.createHash('md5').update(str).digest('hex');
-
-                    const nc = '00000001';
-                    const cnonce = crypto.randomBytes(8).toString('hex');
-
-                    const HA1 = md5(`${device.username}:${realm}:${device.password}`);
-                    const HA2 = md5(`${method}:${path}`);
-
-                    let responseStr;
-                    if (qop) {
-                        responseStr = md5(`${HA1}:${nonce}:${nc}:${cnonce}:${qop}:${HA2}`);
-                    } else {
-                        responseStr = md5(`${HA1}:${nonce}:${HA2}`);
-                    }
-
-                    let digestHeader = `Digest username="${device.username}", realm="${realm}", nonce="${nonce}", uri="${path}", response="${responseStr}", algorithm="${algorithm}"`;
-                    if (qop) digestHeader += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}"`;
-                    if (opaque) digestHeader += `, opaque="${opaque}"`;
-
-                    log(`Sending Digest Header: ${digestHeader}`);
-                    response = await doRequest(digestHeader);
-                } else {
-                    log(`[ISAPI] 401 mas Header de Auth não é Digest ou não existe: ${authHeader}`);
-                }
-            }
-
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-                return response.data;
-            } else {
-                throw new Error(`ISAPI Error ${response.statusCode}: ${response.data}`);
-            }
-        };
-
-        app.post('/api/hardware/restore-names-emergency', async (req, res) => {
-            console.log("🚑 INICIANDO RESTAURO DE EMERGÊNCIA...");
-            try {
-                // Buscar nomes reais das faturas (onde os dados estão preservados)
-                db.all("SELECT DISTINCT client_id, client_name FROM invoices WHERE client_id IS NOT NULL AND client_name NOT GLOB '[0-9]*'", [], async (err, rows) => {
-                    if (err) return res.status(500).json({ error: err.message });
-
-                    console.log(`🔎 Encontrados ${rows.length} nomes nas faturas locais.`);
-
-                    // Se as locais estiverem vazias, tentar as da nuvem se possível
-                    if (rows.length === 0 && supabase) {
-                        console.log("☁️ Tentando recuperar nomes das faturas na nuvem...");
-                        const { data: cloudInvoices } = await supabase.from('invoices').select('client_id, client_name');
-                        if (cloudInvoices) {
-                            for (const inv of cloudInvoices) {
-                                if (inv.client_id && inv.client_name && !inv.client_name.match(/^[0-9]+$/)) {
-                                    db.run("UPDATE clients SET name = ? WHERE id = ? AND (name GLOB '[0-9]*' OR name IS NULL)", [inv.client_name, inv.client_id]);
-                                }
-                            }
-                        }
-                    } else {
-                        for (const row of rows) {
-                            db.run("UPDATE clients SET name = ? WHERE id = ? AND (name GLOB '[0-9]*' OR name IS NULL)", [row.client_name, row.client_id]);
-                        }
-                    }
-
-                    res.json({ status: 'ok', msg: 'Processo de restauro iniciado. Por favor, recarregue a página em 10 segundos.' });
-                });
-            } catch (e) {
-                res.status(500).json({ error: e.message });
-            }
-        });
-
-        app.post('/api/hardware/sync-users', (req, res) => {
-            // DESATIVADO: Este comando causou corrupção de nomes.
-            // Só voltaremos a ativar quando o hardware tiver nomes configurados.
-            res.status(403).json({ error: "Sincronização automática desativada para proteger a integridade dos nomes." });
-        });
-
-        // Adicione esta rota para testar métodos alternativos
-        app.post('/api/hardware/test-search', async (req, res) => {
-            const { deviceId } = req.body;
-            db.get("SELECT * FROM access_devices WHERE id = ?", [deviceId], async (err, device) => {
-                if (err || !device) return res.status(404).json({ error: "Dispositivo não encontrado" });
-
-                const testResults = [];
-
-                // Teste 1: GET simples (alguns dispositivos permitem)
-                try {
-                    console.log("🔍 Testando GET /ISAPI/AccessControl/UserInfo/Record?...");
-                    const getResponse = await requestISAPI(device, 'GET', '/ISAPI/AccessControl/UserInfo/Record?format=xml');
-                    testResults.push({ method: 'GET Record', status: 'success', data: getResponse.substring(0, 200) });
-                } catch (e) {
-                    testResults.push({ method: 'GET Record', status: 'error', error: e.message });
-                }
-
-                // Teste 2: POST com XML mínimo
-                try {
-                    const xmlMin = `<?xml version="1.0"?><UserInfoSearch/>`;
-                    console.log("🔍 Testando POST com XML mínimo...");
-                    const postResponse = await requestISAPI(device, 'POST', '/ISAPI/AccessControl/UserInfo/Search', xmlMin);
-                    testResults.push({ method: 'POST minimal', status: 'success', data: postResponse.substring(0, 200) });
-                } catch (e) {
-                    testResults.push({ method: 'POST minimal', status: 'error', error: e.message });
-                }
-
-                // Teste 3: Verificar capabilities do dispositivo
-                try {
-                    console.log("🔍 Verificando capabilities...");
-                    const caps = await requestISAPI(device, 'GET', '/ISAPI/AccessControl/capabilities');
-                    testResults.push({ method: 'GET capabilities', status: 'success', data: caps.substring(0, 300) });
-                } catch (e) {
-                    testResults.push({ method: 'GET capabilities', status: 'error', error: e.message });
-                }
-
-                res.json({ tests: testResults });
-            });
-        });
-
-        // Validar Detalhes do Dispositivo (Prova de Vida)
-        app.post('/api/hardware/info', async (req, res) => {
-            const { deviceId, tempConfig } = req.body;
-
-            if (deviceId) {
-                try {
-                    device = await new Promise((resolve, reject) => {
-                        db.get("SELECT * FROM access_devices WHERE id = ?", [deviceId], (err, row) => err ? reject(err) : resolve(row));
-                    });
-                } catch (e) { return res.status(500).json({ error: "DB Error" }); }
-            }
-
-            if (!device) return res.status(404).json({ error: "Dispositivo não especificado" });
-
-            try {
-                console.log(`[HIKVISION] Get Info em ${device.ip}...`);
-
-                // 1. Tentar JSON
-                try {
-                    const jsonResponse = await requestISAPI(
-                        device,
-                        'GET',
-                        '/ISAPI/System/deviceInfo?format=json',
-                        null,
-                        'application/json'
-                    );
-
-                    // Parse JSON response
-                    const deviceInfo = (typeof jsonResponse === 'object' && jsonResponse.data) ? JSON.parse(jsonResponse.data) : JSON.parse(jsonResponse);
-
-                    // Check nested structure (DeviceInfo or direct properties)
-                    const info = deviceInfo.DeviceInfo || deviceInfo;
-
-                    res.json({
-                        status: 'ok',
-                        info: {
-                            model: info.deviceName || info.model || 'Desconhecido',
-                            serial: info.serialNumber || '---',
-                            firmware: info.firmwareVersion || '---',
-                            deviceType: info.deviceType || 'Hikvision',
-                            mode: 'JSON'
-                        }
-                    });
-                    return; // Success exit
-
-                } catch (jsonError) {
-                    console.log(`[HIKVISION] Info JSON falhou (${jsonError.message}). Tentando XML...`);
-                }
-
-                // 2. Fallback XML
-                const xml = await requestISAPI(device, 'GET', '/ISAPI/System/deviceInfo');
-
-                // Regex Parse
-                // Regex Parse Flexível (aceita namespaces como xmlns ou prefixos)
-                const model = (/<(?:[^:]+:)?model>([^<]+)<\//i.exec(xml) || [])[1] || 'Desconhecido';
-                const serial = (/<(?:[^:]+:)?serialNumber>([^<]+)<\//i.exec(xml) || [])[1] || '---';
-                const firmware = (/<(?:[^:]+:)?firmwareVersion>([^<]+)<\//i.exec(xml) || [])[1] || '---';
-
-                // Validação Forte: Se não encontrar modelo, não é um dispositivo válido
-                if (model === 'Desconhecido' && serial === '---') {
-                    return res.status(422).json({ error: "Dispositivo não reconhecido. Resposta inválida." });
-                }
-
-                res.json({ status: 'ok', info: { model, serial, firmware, mode: 'XML' } });
-
-            } catch (e) {
-                // Se falhar ISAPI padrão, tenta XML puro se for ZKTeco ou outro
-                // Mas por agora assumimos erro
-                res.status(500).json({ error: e.message, hint: "Falha ao ler dados. Verifique a senha." });
-            }
-        });
-
-
-        // --- Classes Endpoints ---
-        app.get('/api/classes', (req, res) => {
-            db.all("SELECT * FROM classes", [], (err, rows) => {
+});
+app.delete('/api/equipment/:id', (req, res) => {
+    db.run("DELETE FROM equipment WHERE id = ?", [req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else res.json({ status: 'ok' });
+    });
+});
+app.get('/api/locations', (req, res) => db.all("SELECT * FROM locations", [], (err, rows) => res.json(rows || [])));
+app.post('/api/locations', (req, res) => {
+    const { id, name, gym_id } = req.body;
+    db.run(`INSERT INTO locations (id, name, gym_id) VALUES (?,?,?)`, [id, name, gym_id || 'hefel_gym_v1'], (err) => {
+        if (err) res.status(500).json(err);
+        else res.json({ status: 'ok' });
+    });
+});
+
+// Financial / Expenses
+app.get('/api/expenses/products', (req, res) => {
+    db.all("SELECT * FROM product_expenses ORDER BY date DESC", [], (err, rows) => res.json(rows || []));
+});
+
+app.post('/api/expenses/products', (req, res) => {
+    const { product_id, product_name, quantity, unit_cost, supplier } = req.body;
+    const total_cost = quantity * unit_cost;
+    const date = new Date().toISOString();
+    const id = `PEXP${Date.now()}`;
+
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        db.run(`INSERT INTO product_expenses (id, product_id, product_name, quantity, unit_cost, total_cost, date, supplier, synced) VALUES (?,?,?,?,?,?,?,?,0)`,
+            [id, product_id, product_name, quantity, unit_cost, total_cost, date, supplier], (err) => {
                 if (err) {
-                    if (err.message.includes('no such table')) return res.json([]);
+                    db.run("ROLLBACK");
                     return res.status(500).json(err);
                 }
-                res.json(rows || []);
+                // Update stock and cost_price (moving average could be better, but let's keep it simple: use last cost)
+                db.run("UPDATE products SET stock = stock + ?, cost_price = ?, synced = 0 WHERE id = ?", [quantity, unit_cost, product_id], (err) => {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        return res.status(500).json(err);
+                    }
+                    db.run("COMMIT");
+                    res.json({ status: 'ok', id });
+                });
             });
-        });
+    });
+});
 
-        app.post('/api/classes', (req, res) => {
-            const { id, name, instructor_id, schedule, capacity, status, attendees, enrolled } = req.body;
-            db.run(`CREATE TABLE IF NOT EXISTS classes (
+app.get('/api/expenses/gym', (req, res) => {
+    const { gymId } = req.query;
+    const sql = gymId ? "SELECT * FROM gym_expenses WHERE gym_id = ? ORDER BY date DESC" : "SELECT * FROM gym_expenses ORDER BY date DESC";
+    const params = gymId ? [gymId] : [];
+
+    db.all(sql, params, (err, rows) => res.json(rows || []));
+});
+
+app.post('/api/expenses/gym', (req, res) => {
+    const { title, description, amount, category, payment_method, responsible, status, is_fixed, gym_id } = req.body;
+    const date = new Date().toISOString();
+    const id = `EXP${Date.now()}`;
+    const targetGymId = gym_id || 'hefel_gym_v1';
+
+    db.run(`INSERT INTO gym_expenses (id, title, description, amount, category, date, payment_method, responsible, status, is_fixed, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,?,0)`,
+        [id, title || description, description, amount, category, date, payment_method, responsible, status || 'pago', is_fixed || 0, targetGymId], (err) => {
+            if (err) res.status(500).json(err);
+            else res.json({ status: 'ok', id });
+        });
+});
+
+// Instructors / Staff
+app.get('/api/instructors', (req, res) => db.all("SELECT * FROM instructors ORDER BY name ASC", [], (err, rows) => res.json(rows || [])));
+
+app.post('/api/instructors', (req, res) => {
+    const { id, name, phone, email, specialties, contract_type, commission, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary } = req.body;
+    db.run(`INSERT INTO instructors (id, name, phone, email, specialties, contract_type, commission, status, role, base_salary, bonus, inss_discount, irt_discount, other_deductions, net_salary, synced) VALUES (?,?,?,?,?,?,?, 'active', ?,?,?,?,?,?,?, 0)`,
+        [id, name, phone, email, specialties, contract_type, commission, role || contract_type, base_salary || 0, bonus || 0, inss_discount || 0, irt_discount || 0, other_deductions || 0, net_salary || 0],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id, status: 'saved' });
+            setTimeout(syncToCloud, 500);
+        }
+    );
+});
+
+app.put('/api/instructors/:id', (req, res) => {
+    const { name, description, location_id, status, condition, cost, purchase_date, photo_url } = req.body;
+    db.run(`UPDATE equipment SET name=?, description=?, location_id=?, status=?, condition=?, cost=?, purchase_date=?, photo_url=?, synced=0 WHERE id=?`,
+        [name, description, location_id, status, condition, cost, purchase_date, photo_url, req.params.id], (err) => {
+            if (err) res.status(500).json(err);
+            else { res.json({ status: 'ok' }); setTimeout(syncToCloud, 500); }
+        });
+});
+
+app.get('/api/instructors/:id/history', (req, res) => {
+    db.all("SELECT * FROM salary_history WHERE instructor_id = ? ORDER BY change_date DESC", [req.params.id], (err, rows) => {
+        if (err) res.status(500).json(err);
+        else res.json(rows || []);
+    });
+});
+
+app.delete('/api/instructors/:id', (req, res) => {
+    db.run("DELETE FROM instructors WHERE id = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ status: 'deleted' });
+    });
+});
+app.delete('/api/clients/:id', (req, res) => {
+    db.run("DELETE FROM clients WHERE id = ?", [req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else { res.json({ status: 'ok' }); }
+    });
+});
+
+// Hardware & Access Control
+app.get('/api/hardware/devices', (req, res) => {
+    db.all("SELECT * FROM access_devices", [], (err, rows) => res.json(rows || []));
+});
+
+app.post('/api/hardware/devices', (req, res) => {
+    const { name, ip, port, username, password, type } = req.body;
+    db.run(`INSERT INTO access_devices (id, name, ip, port, username, password, type) VALUES (?,?,?,?,?,?,?)`,
+        [`DEV${Date.now()}`, name, ip, port, username, password, type],
+        (err) => {
+            if (err) res.status(500).json(err);
+            else res.json({ status: 'ok' });
+        }
+    );
+});
+
+app.delete('/api/hardware/devices/:id', (req, res) => {
+    db.run("DELETE FROM access_devices WHERE id = ?", [req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else res.json({ status: 'ok' });
+    });
+});
+// ISAPI HANDLER & SYNC
+// ISAPI HANDLER & SYNC
+
+// ISAPI HANDLER & SYNC (With Digest Auth Support)
+const fs = require('fs');
+const https = require('https');
+
+const requestISAPI = async (device, method, path, body = null, contentType = 'application/xml') => {
+    const log = (msg) => {
+        const line = `[${new Date().toISOString()}] ${msg}\n`;
+        console.log(msg);
+        fs.appendFileSync('server_debug.log', line);
+    };
+
+    // Detectar https
+    const isHttps = device.port === 443 || (device.protocol && device.protocol.includes('https'));
+    const requestModule = isHttps ? https : http;
+
+    const doRequest = (authHeader = null) => {
+        return new Promise((resolve, reject) => {
+            const options = {
+                hostname: device.ip,
+                port: device.port || (isHttps ? 443 : 80),
+                path: path,
+                method: method,
+                headers: {
+                    'Content-Type': contentType,
+                    'Content-Length': body ? Buffer.byteLength(body) : 0
+                },
+                rejectUnauthorized: false, // Aceitar certificados auto-assinados da Hikvision
+                timeout: 8000
+            };
+
+            // Override Content-Type if explicitly passed or JSON detected
+            if (contentType) {
+                options.headers['Content-Type'] = contentType;
+            } else if (body && typeof body === 'string' && body.trim().startsWith('{')) {
+                options.headers['Content-Type'] = 'application/json';
+            }
+
+            if (authHeader) options.headers['Authorization'] = authHeader;
+
+            const protocolStr = isHttps ? 'https' : 'http';
+
+            // Detailed Logging
+            console.log('=== REQUEST DETAILS ===');
+            console.log('URL:', `${protocolStr}://${device.ip}:${options.port}${path}`);
+            console.log('Method:', method);
+            console.log('Headers:', JSON.stringify(options.headers, null, 2));
+            console.log('Body Preview:', body ? body.substring(0, 200) : 'NO BODY');
+            console.log('=====================\n');
+
+            log(`Make Request: ${method} ${protocolStr}://${device.ip}:${options.port}${path} (Auth: ${authHeader ? 'Yes' : 'No'})`);
+
+            const req = requestModule.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    log(`Response: ${res.statusCode} Headers: ${JSON.stringify(res.headers)} BodySnippet: ${data.substring(0, 100)}...`);
+                    resolve({ statusCode: res.statusCode, headers: res.headers, data });
+                });
+            });
+
+            req.on('error', (e) => {
+                log(`Request Error: ${e.message}`);
+                reject(e);
+            });
+            if (body) req.write(body);
+            req.end();
+        });
+    };
+
+    // 1. Tentar primeiro SEM Auth (mas com body)
+    let response = await doRequest(null);
+
+    // Se receber 401, processar o desafio Digest
+    if (response.statusCode === 401) {
+        const authHeader = response.headers['www-authenticate'];
+
+        if (!authHeader) {
+            log(`[ISAPI] 401 mas SEM header 'www-authenticate'. Possível erro de PERMISSÃO ou HTTPS.`);
+            throw new Error("ISAPI 401: Falha de Autenticação/Permissão. Verifique se o usuário tem permissão 'Remote Door Control'.");
+        }
+
+        if (authHeader && authHeader.toLowerCase().startsWith('digest')) {
+            log(`[ISAPI] 401 Detectado. Header: ${authHeader}`);
+
+            // Parse Challenge
+            const challenge = {};
+            const re = /(\w+)=("[^"]*"|[^,]*)/g;
+            let match;
+            while (match = re.exec(authHeader)) {
+                challenge[match[1]] = match[2].replace(/^"|"$/g, '');
+            }
+
+            const realm = challenge.realm;
+            const nonce = challenge.nonce;
+            const qop = challenge.qop;
+            const opaque = challenge.opaque;
+            const algorithm = challenge.algorithm || 'MD5';
+
+            // Calculate Digest
+            const md5 = (str) => crypto.createHash('md5').update(str).digest('hex');
+
+            const nc = '00000001';
+            const cnonce = crypto.randomBytes(8).toString('hex');
+
+            const HA1 = md5(`${device.username}:${realm}:${device.password}`);
+            const HA2 = md5(`${method}:${path}`);
+
+            let responseStr;
+            if (qop) {
+                responseStr = md5(`${HA1}:${nonce}:${nc}:${cnonce}:${qop}:${HA2}`);
+            } else {
+                responseStr = md5(`${HA1}:${nonce}:${HA2}`);
+            }
+
+            let digestHeader = `Digest username="${device.username}", realm="${realm}", nonce="${nonce}", uri="${path}", response="${responseStr}", algorithm="${algorithm}"`;
+            if (qop) digestHeader += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}"`;
+            if (opaque) digestHeader += `, opaque="${opaque}"`;
+
+            log(`Sending Digest Header: ${digestHeader}`);
+            response = await doRequest(digestHeader);
+        } else {
+            log(`[ISAPI] 401 mas Header de Auth não é Digest ou não existe: ${authHeader}`);
+        }
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.data;
+    } else {
+        throw new Error(`ISAPI Error ${response.statusCode}: ${response.data}`);
+    }
+};
+
+app.post('/api/hardware/restore-names-emergency', async (req, res) => {
+    console.log("🚑 INICIANDO RESTAURO DE EMERGÊNCIA...");
+    try {
+        // Buscar nomes reais das faturas (onde os dados estão preservados)
+        db.all("SELECT DISTINCT client_id, client_name FROM invoices WHERE client_id IS NOT NULL AND client_name NOT GLOB '[0-9]*'", [], async (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            console.log(`🔎 Encontrados ${rows.length} nomes nas faturas locais.`);
+
+            // Se as locais estiverem vazias, tentar as da nuvem se possível
+            if (rows.length === 0 && supabase) {
+                console.log("☁️ Tentando recuperar nomes das faturas na nuvem...");
+                const { data: cloudInvoices } = await supabase.from('invoices').select('client_id, client_name');
+                if (cloudInvoices) {
+                    for (const inv of cloudInvoices) {
+                        if (inv.client_id && inv.client_name && !inv.client_name.match(/^[0-9]+$/)) {
+                            db.run("UPDATE clients SET name = ? WHERE id = ? AND (name GLOB '[0-9]*' OR name IS NULL)", [inv.client_name, inv.client_id]);
+                        }
+                    }
+                }
+            } else {
+                for (const row of rows) {
+                    db.run("UPDATE clients SET name = ? WHERE id = ? AND (name GLOB '[0-9]*' OR name IS NULL)", [row.client_name, row.client_id]);
+                }
+            }
+
+            res.json({ status: 'ok', msg: 'Processo de restauro iniciado. Por favor, recarregue a página em 10 segundos.' });
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/hardware/sync-users', (req, res) => {
+    // DESATIVADO: Este comando causou corrupção de nomes.
+    // Só voltaremos a ativar quando o hardware tiver nomes configurados.
+    res.status(403).json({ error: "Sincronização automática desativada para proteger a integridade dos nomes." });
+});
+
+// Adicione esta rota para testar métodos alternativos
+app.post('/api/hardware/test-search', async (req, res) => {
+    const { deviceId } = req.body;
+    db.get("SELECT * FROM access_devices WHERE id = ?", [deviceId], async (err, device) => {
+        if (err || !device) return res.status(404).json({ error: "Dispositivo não encontrado" });
+
+        const testResults = [];
+
+        // Teste 1: GET simples (alguns dispositivos permitem)
+        try {
+            console.log("🔍 Testando GET /ISAPI/AccessControl/UserInfo/Record?...");
+            const getResponse = await requestISAPI(device, 'GET', '/ISAPI/AccessControl/UserInfo/Record?format=xml');
+            testResults.push({ method: 'GET Record', status: 'success', data: getResponse.substring(0, 200) });
+        } catch (e) {
+            testResults.push({ method: 'GET Record', status: 'error', error: e.message });
+        }
+
+        // Teste 2: POST com XML mínimo
+        try {
+            const xmlMin = `<?xml version="1.0"?><UserInfoSearch/>`;
+            console.log("🔍 Testando POST com XML mínimo...");
+            const postResponse = await requestISAPI(device, 'POST', '/ISAPI/AccessControl/UserInfo/Search', xmlMin);
+            testResults.push({ method: 'POST minimal', status: 'success', data: postResponse.substring(0, 200) });
+        } catch (e) {
+            testResults.push({ method: 'POST minimal', status: 'error', error: e.message });
+        }
+
+        // Teste 3: Verificar capabilities do dispositivo
+        try {
+            console.log("🔍 Verificando capabilities...");
+            const caps = await requestISAPI(device, 'GET', '/ISAPI/AccessControl/capabilities');
+            testResults.push({ method: 'GET capabilities', status: 'success', data: caps.substring(0, 300) });
+        } catch (e) {
+            testResults.push({ method: 'GET capabilities', status: 'error', error: e.message });
+        }
+
+        res.json({ tests: testResults });
+    });
+});
+
+// Validar Detalhes do Dispositivo (Prova de Vida)
+app.post('/api/hardware/info', async (req, res) => {
+    const { deviceId, tempConfig } = req.body;
+
+    if (deviceId) {
+        try {
+            device = await new Promise((resolve, reject) => {
+                db.get("SELECT * FROM access_devices WHERE id = ?", [deviceId], (err, row) => err ? reject(err) : resolve(row));
+            });
+        } catch (e) { return res.status(500).json({ error: "DB Error" }); }
+    }
+
+    if (!device) return res.status(404).json({ error: "Dispositivo não especificado" });
+
+    try {
+        console.log(`[HIKVISION] Get Info em ${device.ip}...`);
+
+        // 1. Tentar JSON
+        try {
+            const jsonResponse = await requestISAPI(
+                device,
+                'GET',
+                '/ISAPI/System/deviceInfo?format=json',
+                null,
+                'application/json'
+            );
+
+            // Parse JSON response
+            const deviceInfo = (typeof jsonResponse === 'object' && jsonResponse.data) ? JSON.parse(jsonResponse.data) : JSON.parse(jsonResponse);
+
+            // Check nested structure (DeviceInfo or direct properties)
+            const info = deviceInfo.DeviceInfo || deviceInfo;
+
+            res.json({
+                status: 'ok',
+                info: {
+                    model: info.deviceName || info.model || 'Desconhecido',
+                    serial: info.serialNumber || '---',
+                    firmware: info.firmwareVersion || '---',
+                    deviceType: info.deviceType || 'Hikvision',
+                    mode: 'JSON'
+                }
+            });
+            return; // Success exit
+
+        } catch (jsonError) {
+            console.log(`[HIKVISION] Info JSON falhou (${jsonError.message}). Tentando XML...`);
+        }
+
+        // 2. Fallback XML
+        const xml = await requestISAPI(device, 'GET', '/ISAPI/System/deviceInfo');
+
+        // Regex Parse
+        // Regex Parse Flexível (aceita namespaces como xmlns ou prefixos)
+        const model = (/<(?:[^:]+:)?model>([^<]+)<\//i.exec(xml) || [])[1] || 'Desconhecido';
+        const serial = (/<(?:[^:]+:)?serialNumber>([^<]+)<\//i.exec(xml) || [])[1] || '---';
+        const firmware = (/<(?:[^:]+:)?firmwareVersion>([^<]+)<\//i.exec(xml) || [])[1] || '---';
+
+        // Validação Forte: Se não encontrar modelo, não é um dispositivo válido
+        if (model === 'Desconhecido' && serial === '---') {
+            return res.status(422).json({ error: "Dispositivo não reconhecido. Resposta inválida." });
+        }
+
+        res.json({ status: 'ok', info: { model, serial, firmware, mode: 'XML' } });
+
+    } catch (e) {
+        // Se falhar ISAPI padrão, tenta XML puro se for ZKTeco ou outro
+        // Mas por agora assumimos erro
+        res.status(500).json({ error: e.message, hint: "Falha ao ler dados. Verifique a senha." });
+    }
+});
+
+
+// --- Classes Endpoints ---
+app.get('/api/classes', (req, res) => {
+    db.all("SELECT * FROM classes", [], (err, rows) => {
+        if (err) {
+            if (err.message.includes('no such table')) return res.json([]);
+            return res.status(500).json(err);
+        }
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/classes', (req, res) => {
+    const { id, name, instructor_id, schedule, capacity, status, attendees, enrolled } = req.body;
+    db.run(`CREATE TABLE IF NOT EXISTS classes (
             id TEXT PRIMARY KEY,
             name TEXT,
             instructor_id TEXT,
@@ -1766,28 +1763,28 @@ app.get('/api/clients', (req, res) => {
             enrolled INTEGER DEFAULT 0,
             synced INTEGER DEFAULT 0
         )`, () => {
-                // Migrations
-                db.run("ALTER TABLE classes ADD COLUMN attendees TEXT", () => { });
-                db.run("ALTER TABLE classes ADD COLUMN enrolled INTEGER DEFAULT 0", () => { });
+        // Migrations
+        db.run("ALTER TABLE classes ADD COLUMN attendees TEXT", () => { });
+        db.run("ALTER TABLE classes ADD COLUMN enrolled INTEGER DEFAULT 0", () => { });
 
-                db.run(`INSERT INTO classes (id, name, instructor_id, schedule, capacity, status, attendees, enrolled, synced) VALUES (?,?,?,?,?,?,?,?,0)`,
-                    [id, name, instructor_id, JSON.stringify(schedule), capacity, status || 'active', JSON.stringify(attendees || []), enrolled || 0],
-                    (err) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        res.json({ id, status: 'saved' });
-                    }
-                );
-            });
-        });
+        db.run(`INSERT INTO classes (id, name, instructor_id, schedule, capacity, status, attendees, enrolled, synced) VALUES (?,?,?,?,?,?,?,?,0)`,
+            [id, name, instructor_id, JSON.stringify(schedule), capacity, status || 'active', JSON.stringify(attendees || []), enrolled || 0],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id, status: 'saved' });
+            }
+        );
+    });
+});
 
-        app.put('/api/classes/:id', (req, res) => {
-            const { name, instructor_id, schedule, capacity, status, attendees, enrolled } = req.body;
+app.put('/api/classes/:id', (req, res) => {
+    const { name, instructor_id, schedule, capacity, status, attendees, enrolled } = req.body;
 
-            // Migrations on Update too, just in case
-            db.run("ALTER TABLE classes ADD COLUMN attendees TEXT", () => { });
-            db.run("ALTER TABLE classes ADD COLUMN enrolled INTEGER DEFAULT 0", () => { });
+    // Migrations on Update too, just in case
+    db.run("ALTER TABLE classes ADD COLUMN attendees TEXT", () => { });
+    db.run("ALTER TABLE classes ADD COLUMN enrolled INTEGER DEFAULT 0", () => { });
 
-            db.run(`UPDATE classes SET
+    db.run(`UPDATE classes SET
             name = COALESCE(?, name),
             instructor_id = COALESCE(?, instructor_id),
             schedule = COALESCE(?, schedule),
@@ -1797,35 +1794,35 @@ app.get('/api/clients', (req, res) => {
             enrolled = COALESCE(?, enrolled),
             synced = 0
             WHERE id = ?`,
-                [name, instructor_id, JSON.stringify(schedule), capacity, status, JSON.stringify(attendees), enrolled, req.params.id],
-                (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ status: 'updated' });
-                }
-            );
-        });
+        [name, instructor_id, JSON.stringify(schedule), capacity, status, JSON.stringify(attendees), enrolled, req.params.id],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ status: 'updated' });
+        }
+    );
+});
 
-        app.delete('/api/classes/:id', (req, res) => {
-            db.run("DELETE FROM classes WHERE id = ?", [req.params.id], (err) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ status: 'deleted' });
-            });
-        });
+app.delete('/api/classes/:id', (req, res) => {
+    db.run("DELETE FROM classes WHERE id = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ status: 'deleted' });
+    });
+});
 
-        // --- Trainings Endpoints ---
-        app.get('/api/trainings', (req, res) => {
-            db.all("SELECT * FROM trainings", [], (err, rows) => {
-                if (err) {
-                    if (err.message.includes('no such table')) return res.json([]);
-                    return res.status(500).json(err);
-                }
-                res.json(rows || []);
-            });
-        });
+// --- Trainings Endpoints ---
+app.get('/api/trainings', (req, res) => {
+    db.all("SELECT * FROM trainings", [], (err, rows) => {
+        if (err) {
+            if (err.message.includes('no such table')) return res.json([]);
+            return res.status(500).json(err);
+        }
+        res.json(rows || []);
+    });
+});
 
-        app.post('/api/trainings', (req, res) => {
-            const { id, name, type, duration, exercises, difficulty, days } = req.body;
-            db.run(`CREATE TABLE IF NOT EXISTS trainings (
+app.post('/api/trainings', (req, res) => {
+    const { id, name, type, duration, exercises, difficulty, days } = req.body;
+    db.run(`CREATE TABLE IF NOT EXISTS trainings (
             id TEXT PRIMARY KEY,
             name TEXT,
             type TEXT,
@@ -1835,19 +1832,19 @@ app.get('/api/clients', (req, res) => {
             days TEXT,
             synced INTEGER DEFAULT 0
         )`, () => {
-                db.run(`INSERT INTO trainings (id, name, type, duration, exercises, difficulty, days, synced) VALUES (?,?,?,?,?,?,?,0)`,
-                    [id, name, type, duration, exercises, difficulty, JSON.stringify(days)],
-                    (err) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        res.json({ id, status: 'saved' });
-                    }
-                );
-            });
-        });
+        db.run(`INSERT INTO trainings (id, name, type, duration, exercises, difficulty, days, synced) VALUES (?,?,?,?,?,?,?,0)`,
+            [id, name, type, duration, exercises, difficulty, JSON.stringify(days)],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id, status: 'saved' });
+            }
+        );
+    });
+});
 
-        app.put('/api/trainings/:id', (req, res) => {
-            const { name, type, duration, exercises, difficulty, days } = req.body;
-            db.run(`UPDATE trainings SET
+app.put('/api/trainings/:id', (req, res) => {
+    const { name, type, duration, exercises, difficulty, days } = req.body;
+    db.run(`UPDATE trainings SET
             name = COALESCE(?, name),
             type = COALESCE(?, type),
             duration = COALESCE(?, duration),
@@ -1856,373 +1853,293 @@ app.get('/api/clients', (req, res) => {
             days = COALESCE(?, days),
             synced = 0
             WHERE id = ?`,
-                [name, type, duration, exercises, difficulty, JSON.stringify(days), req.params.id],
-                (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ status: 'updated' });
-                }
-            );
-        });
-
-        app.delete('/api/trainings/:id', (req, res) => {
-            db.run("DELETE FROM trainings WHERE id = ?", [req.params.id], (err) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ status: 'deleted' });
-            });
-        });
-
-
-
-
-        // --- Hardware Control Endpoints ---
-
-        // 1. Remote Open Door
-        app.post('/api/hardware/open-door', async (req, res) => {
-            let { ip, port, user, pass } = req.body;
-
-            // Suporte para IP:Porta (ex: 192.168.1.100:8000)
-            if (ip && ip.includes(':')) {
-                const parts = ip.split(':');
-                ip = parts[0];
-                port = parseInt(parts[1]);
-            }
-
-            const device = {
-                ip,
-                port: port || 80, // Usa a porta informada ou 80 por defeito
-                username: user,
-                password: pass
-            };
-
-            // XML payload para abrir
-            const xml = `<RemoteControlDoor><cmd>open</cmd></RemoteControlDoor>`;
-
-            try {
-                await requestISAPI(device, 'PUT', '/ISAPI/AccessControl/RemoteControl/door/1', xml);
-                res.json({ status: 'ok', msg: 'Porta Aberta com Sucesso' });
-            } catch (e) {
-                console.error("Open Door Error:", e.message);
-                res.status(500).json({ error: 'Falha ao abrir porta', details: e.message });
-            }
-        });
-
-        // 2. Block/Unlock User (Modify User Status)
-        app.post('/api/hardware/user-control', async (req, res) => {
-            const { ip, user, pass, userId, action } = req.body; // action: 'block' or 'unblock'
-
-            // Para bloquear, geralmente editamos o user e definimos "enabled" como false ou mudamos o UserType.
-            // Simplificação: Vamos assumir que deletar face/cartão ou mudar validade é o caminho,
-            // mas o ISAPI padrão permite editar Info.
-            // Se "block", vamos apagar as permissões ou definir expiry date para passado.
-            // Melhor abordagem: Sync individual com enable = false.
-
-            // Reutilizar a logica de sync mas para um user especifico
-            // ... Implementação simplificada por agora:
-            res.json({ status: 'ok', msg: `Comando ${action} enviado (Simulação)` });
-            // TODO: Implementar PUT ISAPI/AccessControl/UserInfo/Modify
-        });
-
-        app.get('/api/network/scan', async (req, res) => {
-            try {
-                // 1. Descobrir IP Local
-                const os = require('os'); // Adicionado para o network scan
-                const net = require('net'); // Adicionado para o network scan
-                const interfaces = os.networkInterfaces();
-                let subnet = '';
-
-                for (const name of Object.keys(interfaces)) {
-                    for (const iface of interfaces[name]) {
-                        // Pula internos e não-IPv4
-                        if (iface.family === 'IPv4' && !iface.internal) {
-                            const parts = iface.address.split('.');
-                            parts.pop(); // Remove o último octeto
-                            subnet = parts.join('.');
-                            break;
-                        }
-                    }
-                    if (subnet) break;
-                }
-
-                if (!subnet) return res.json({ devices: [] });
-
-                // 2. Varrer Rede (1-254)
-                const checkPort = (ip) => {
-                    return new Promise((resolve) => {
-                        const socket = new net.Socket();
-                        socket.setTimeout(300);
-
-                        socket.on('connect', () => {
-                            socket.destroy();
-                            // Porta aberta! Tentar identificar Vendor.
-                            identifyVendor(ip).then(info => {
-                                resolve({ ip, status: 'online', name: info.name, vendor: info.vendor });
-                            });
-                        });
-
-                        socket.on('timeout', () => { socket.destroy(); resolve(null); });
-                        socket.on('error', () => { socket.destroy(); resolve(null); });
-
-                        socket.connect(80, ip);
-                    });
-                };
-
-                const identifyVendor = (ip) => {
-                    return new Promise(resolve => {
-                        const req = http.get(`http://${ip}/`, { timeout: 1000 }, (res) => {
-                            const serverHeader = res.headers['server'] || '';
-                            const authHeader = res.headers['www-authenticate'] || '';
-
-                            let vendor = 'Desconhecido';
-                            let name = `Dispositivo ${ip.split('.').pop()}`;
-
-                            // Hikvision detection heuristics
-                            if (serverHeader.includes('Hikvision') || serverHeader.includes('App-webs') || authHeader.includes('Digest')) {
-                                vendor = 'Hikvision';
-                                name = 'Catraca/Câmera Hikvision';
-                            } else if (serverHeader.includes('BoaHttp')) {
-                                vendor = 'ZKTeco'; // Comum em ZK
-                            }
-
-                            resolve({ vendor, name });
-                            res.resume(); // Consume
-                        });
-                        req.on('error', () => resolve({ vendor: 'Genérico', name: `Device ${ip.split('.').pop()}` }));
-                        req.setTimeout(800, () => { req.abort(); resolve({ vendor: 'Genérico', name: `Device ${ip.split('.').pop()}` }); });
-                    });
-                };
-
-                const promises = [];
-                // Scan limitado para ser rápido (apenas 50 ips vizinhos ou full se quiser)
-                // Vamos fazer full 1-254 em batches
-                for (let i = 1; i < 255; i++) {
-                    promises.push(checkPort(`${subnet}.${i}`));
-                }
-
-                const results = await Promise.all(promises);
-                const found = results.filter(r => r !== null);
-
-                res.json({ subnet, devices: found });
-
-            } catch (e) {
-                console.error("Scan Error:", e);
-
-                // --- Invoices Routes (100% CLOUD) ---
-                app.get('/api/invoices', async (req, res) => {
-                    const { clientId, invoiceId, gymId } = req.query;
-                    try {
-                        let query = supabase.from('invoices').select('*').order('date', { ascending: false });
-                        if (invoiceId) query = query.eq('id', invoiceId).single();
-                        else if (clientId) query = query.eq('client_id', clientId);
-                        else if (gymId) query = query.eq('gym_id', gymId);
-
-                        const { data, error } = await query;
-                        if (error) throw error;
-
-                        const process = (r) => ({ ...r, items: (typeof r.items === 'string' ? JSON.parse(r.items) : r.items) || [] });
-                        res.json(Array.isArray(data) ? data.map(process) : (data ? process(data) : []));
-                    } catch (e) { res.status(500).json({ error: e.message }); }
-                });
-
-                app.post('/api/invoices', async (req, res) => {
-                    const { id, client_id, client_name, amount, status, items, date, payment_method, gym_id } = req.body;
-                    try {
-                        const { error } = await supabase.from('invoices').upsert({
-                            id, client_id, client_name, amount, status, items: JSON.stringify(items), date, payment_method, gym_id: gym_id || 'hefel_gym_v1'
-                        });
-                        if (error) throw error;
-                        res.json({ id, status: 'saved' });
-                    } catch (e) { res.status(500).json({ error: e.message }); }
-                });
-                // db.run("ALTER TABLE invoices ADD COLUMN void_reason TEXT", () => {}); -- Já deve estar no boot principal
-
-
-                // ... (rest of DB init) ...
-
-                // Void Invoice Endpoint
-                app.put('/api/invoices/:id/void', (req, res) => {
-                    const { reason } = req.body;
-                    db.run("UPDATE invoices SET status = 'anulada', void_reason = ?, synced = 0 WHERE id = ?", [reason, req.params.id], (err) => {
-                        if (err) res.status(500).json(err);
-                        else {
-                            res.json({ status: 'ok' });
-                            setTimeout(syncToCloud, 500);
-                        }
-                    });
-                });
-
-                // === SYSTEM USERS MODULE (GESTÃO LOCAL DE UTILIZADORES) ===
-                // 1. Listar utilizadores de um ginásio
-                app.get('/api/system-users', (req, res) => {
-                    const { gymId } = req.query;
-                    if (!gymId) return res.status(400).json({ error: "Gym ID obrigatório" });
-
-                    db.all("SELECT id, name, email, role, gym_id FROM system_users WHERE gym_id = ?", [gymId], (err, rows) => {
-                        // === SYSTEM USERS MODULE (100% CLOUD) ===
-                        app.get('/api/system-users', async (req, res) => {
-                            try {
-                                const { data, error } = await supabase.from('system_users').select('*').order('name', { ascending: true });
-                                if (error) throw error;
-                                res.json(data || []);
-                            } catch (e) { res.status(500).json({ error: e.message }); }
-                        });
-
-                        app.post('/api/system-users', async (req, res) => {
-                            const { id, name, email, password, role, gymId } = req.body;
-                            try {
-                                const targetId = id || uuidv4();
-                                const { error } = await supabase.from('system_users').upsert({
-                                    id: targetId, name, email, password, role, gym_id: gymId || 'hefel_gym_v1'
-                                });
-                                if (error) throw error;
-                                res.json({ success: true, id: targetId, message: "Utilizador guardado na nuvem." });
-                            } catch (e) { res.status(500).json({ error: e.message }); }
-                        });
-
-                        app.put('/api/system-users/:id', async (req, res) => {
-                            const { name, email, password, role, gymId, status } = req.body;
-                            try {
-                                const { error } = await supabase.from('system_users').update({
-                                    name, email, password, role, gym_id: gymId, status
-                                }).eq('id', req.params.id);
-                                if (error) throw error;
-                                res.json({ success: true, message: "Utilizador atualizado." });
-                            } catch (e) { res.status(500).json({ error: e.message }); }
-                        });
-
-                        // 3. Mudar senha (Ação do Próprio Utilizador)
-                        app.put('/api/system-users/change-password', (req, res) => {
-                            const { email, currentPassword, newPassword } = req.body;
-
-                            if (!email || !currentPassword || !newPassword) {
-                                return res.status(400).json({ error: "Todos os campos são obrigatórios." });
-                            }
-
-                            db.get("SELECT id FROM system_users WHERE email = ? AND password = ?", [email, currentPassword], (err, user) => {
-                                if (err) return res.status(500).json({ error: err.message });
-                                if (!user) return res.status(401).json({ error: "Palavra-passe atual incorreta." });
-
-                                db.run("UPDATE system_users SET password = ?, synced = 0 WHERE id = ?", [newPassword, user.id], (updErr) => {
-                                    if (updErr) return res.status(500).json({ error: updErr.message });
-                                    res.json({ success: true, message: "Palavra-passe atualizada com sucesso!" });
-                                });
-                            });
-                        });
-
-                        // 4. Atualizar Utilizador (Nome, Email, Role, Status)
-                        app.put('/api/system-users/:id', (req, res) => {
-                            const { name, email, role, status, password } = req.body;
-                            const { id } = req.params;
-
-                            // Se vier password, atualizamos, senão mantemos.
-                            // Query dinâmica simplificada
-                            let sql = "UPDATE system_users SET name = ?, email = ?, role = ?, status = ?, synced = 0";
-                            let params = [name, email, role, status || 'active'];
-
-                            if (password && password.trim() !== '') {
-                                sql += ", password = ?";
-                                params.push(password);
-                            }
-
-                            sql += " WHERE id = ?";
-                            params.push(id);
-
-                            db.run(sql, params, function (err) {
-                                if (err) return res.status(500).json({ error: err.message });
-                                res.json({ success: true, message: "Utilizador atualizado com sucesso!" });
-                            });
-                        });
-
-                        // 5. Eliminar Utilizador
-                        app.delete('/api/system-users/:id', (req, res) => {
-                            const { id } = req.params;
-                            db.run("DELETE FROM system_users WHERE id = ?", [id], function (err) {
-                                if (err) return res.status(500).json({ error: err.message });
-                                if (this.changes === 0) return res.status(404).json({ error: "Utilizador não encontrado." });
-                                res.json({ success: true, message: "Utilizador eliminado com sucesso!" });
-                            });
-                        });
-
-                        // Pay Invoice Endpoint
-                        app.put('/api/invoices/:id/pay', (req, res) => {
-                            const { payment_method, payment_ref } = req.body;
-                            const now = new Date().toISOString();
-                            db.run("UPDATE invoices SET status = 'pago', payment_method = ?, payment_ref = ?, synced = 0 WHERE id = ?",
-                                [payment_method, payment_ref, req.params.id], (err) => {
-                                    if (err) res.status(500).json(err);
-                                    else {
-                                        res.json({ status: 'ok' });
-                                        setTimeout(syncToCloud, 500);
-                                    }
-                                }
-                            );
-                        });
-
-                        // Subscription
-                        app.get('/api/subscription', async (req, res) => {
-                            const gymId = await getGymId();
-                            if (!gymId) return res.json({ status: 'setup_required' });
-                            db.get("SELECT * FROM saas_subscriptions WHERE gym_id = ?", [gymId], (err, row) => {
-                                if (!row) return res.json({ status: 'trial' });
-                                let features = {}; try { features = JSON.parse(row.features || '{}'); } catch (e) { }
-                                res.json({ ...row, features });
-                            });
-                        });
-
-                        // AUTO-EXPIRE USERS
-                        app.post('/api/clients/check-inactive', (req, res) => {
-                            const inactiveDays = req.body.days || 60;
-                            console.log(`🧹 Verificando usuários inativos (> ${inactiveDays} dias)...`);
-                            db.run(`UPDATE clients SET status = 'inactive', synced = 0 WHERE status = 'active' AND (last_access IS NOT NULL AND date(last_access) < date('now', '-${inactiveDays} days'))`, function (err) {
-                                if (err) return res.status(500).json({ error: err.message });
-                                const count = this.changes;
-                                console.log(`📉 ${count} usuários marcados como inativos.`);
-                                res.json({ status: 'ok', markedInactive: count });
-                            });
-                        });
-
-                        // Agendar limpeza diária
-                        setInterval(() => {
-                            const fetch = require('node-fetch'); // Ensure fetch available or use http
-                            // Simple direct DB call instead of fetch to self
-                            const inactiveDays = 60;
-                            db.run(`UPDATE clients SET status = 'inactive', synced = 0 WHERE status = 'active' AND (last_access IS NOT NULL AND date(last_access) < date('now', '-${inactiveDays} days'))`, (err) => {
-                                if (!err) console.log("🧹 Limpeza automática de inativos realizada.");
-                            });
-                        }, 24 * 60 * 60 * 1000);
-
-                        // ========== PAYROLL HISTORY ROUTES ==========
-                        app.get('/api/payroll-history', (req, res) => {
-                            db.all('SELECT * FROM payroll_history ORDER BY year DESC, month DESC', [], (err, rows) => {
-                                if (err) return res.status(500).json({ error: err.message });
-                                res.json(rows || []);
-                            });
-                        });
-
-                        app.post('/api/payroll-history', (req, res) => {
-                            const { id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by } = req.body;
-
-                            db.run(
-                                `INSERT INTO payroll_history (id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by, synced) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-                                [id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by],
-                                function (err) {
-                                    if (err) return res.status(500).json({ error: err.message });
-                                    res.json({ success: true, id: this.lastID });
-                                }
-                            );
-                        });
-
-
-                        app.listen(PORT, () => {
-                            console.log(`🚀 SERVIDOR LOCAL RODANDO NA PORTA ${PORT}`);
-                            // Sincronização em background ao iniciar - DESATIVADA (causa crashes)
-                            // setTimeout(syncToCloud, 5000);
-                        });
-                    }
-}
-}
+        [name, type, duration, exercises, difficulty, JSON.stringify(days), req.params.id],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ status: 'updated' });
         }
-}
-}
-}
-}
+    );
+});
+
+app.delete('/api/trainings/:id', (req, res) => {
+    db.run("DELETE FROM trainings WHERE id = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ status: 'deleted' });
+    });
+});
+
+
+
+
+// --- Hardware Control Endpoints ---
+
+// 1. Remote Open Door
+app.post('/api/hardware/open-door', async (req, res) => {
+    let { ip, port, user, pass } = req.body;
+
+    // Suporte para IP:Porta (ex: 192.168.1.100:8000)
+    if (ip && ip.includes(':')) {
+        const parts = ip.split(':');
+        ip = parts[0];
+        port = parseInt(parts[1]);
+    }
+
+    const device = {
+        ip,
+        port: port || 80, // Usa a porta informada ou 80 por defeito
+        username: user,
+        password: pass
+    };
+
+    // XML payload para abrir
+    const xml = `<RemoteControlDoor><cmd>open</cmd></RemoteControlDoor>`;
+
+    try {
+        await requestISAPI(device, 'PUT', '/ISAPI/AccessControl/RemoteControl/door/1', xml);
+        res.json({ status: 'ok', msg: 'Porta Aberta com Sucesso' });
+    } catch (e) {
+        console.error("Open Door Error:", e.message);
+        res.status(500).json({ error: 'Falha ao abrir porta', details: e.message });
+    }
+});
+
+// 2. Block/Unlock User (Modify User Status)
+app.post('/api/hardware/user-control', async (req, res) => {
+    const { ip, user, pass, userId, action } = req.body; // action: 'block' or 'unblock'
+
+    // Para bloquear, geralmente editamos o user e definimos "enabled" como false ou mudamos o UserType.
+    // Simplificação: Vamos assumir que deletar face/cartão ou mudar validade é o caminho,
+    // mas o ISAPI padrão permite editar Info.
+    // Se "block", vamos apagar as permissões ou definir expiry date para passado.
+    // Melhor abordagem: Sync individual com enable = false.
+
+    // Reutilizar a logica de sync mas para um user especifico
+    // ... Implementação simplificada por agora:
+    res.json({ status: 'ok', msg: `Comando ${action} enviado (Simulação)` });
+    // TODO: Implementar PUT ISAPI/AccessControl/UserInfo/Modify
+});
+
+app.get('/api/network/scan', async (req, res) => {
+    try {
+        // 1. Descobrir IP Local
+        const os = require('os'); // Adicionado para o network scan
+        const net = require('net'); // Adicionado para o network scan
+        const interfaces = os.networkInterfaces();
+        let subnet = '';
+
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                // Pula internos e não-IPv4
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    const parts = iface.address.split('.');
+                    parts.pop(); // Remove o último octeto
+                    subnet = parts.join('.');
+                    break;
+                }
+            }
+            if (subnet) break;
+        }
+
+        if (!subnet) return res.json({ devices: [] });
+
+        // 2. Varrer Rede (1-254)
+        const checkPort = (ip) => {
+            return new Promise((resolve) => {
+                const socket = new net.Socket();
+                socket.setTimeout(300);
+
+                socket.on('connect', () => {
+                    socket.destroy();
+                    // Porta aberta! Tentar identificar Vendor.
+                    identifyVendor(ip).then(info => {
+                        resolve({ ip, status: 'online', name: info.name, vendor: info.vendor });
+                    });
+                });
+
+                socket.on('timeout', () => { socket.destroy(); resolve(null); });
+                socket.on('error', () => { socket.destroy(); resolve(null); });
+
+                socket.connect(80, ip);
+            });
+        };
+
+        const identifyVendor = (ip) => {
+            return new Promise(resolve => {
+                const req = http.get(`http://${ip}/`, { timeout: 1000 }, (res) => {
+                    const serverHeader = res.headers['server'] || '';
+                    const authHeader = res.headers['www-authenticate'] || '';
+
+                    let vendor = 'Desconhecido';
+                    let name = `Dispositivo ${ip.split('.').pop()}`;
+
+                    // Hikvision detection heuristics
+                    if (serverHeader.includes('Hikvision') || serverHeader.includes('App-webs') || authHeader.includes('Digest')) {
+                        vendor = 'Hikvision';
+                        name = 'Catraca/Câmera Hikvision';
+                    } else if (serverHeader.includes('BoaHttp')) {
+                        vendor = 'ZKTeco'; // Comum em ZK
+                    }
+
+                    resolve({ vendor, name });
+                    res.resume(); // Consume
+                });
+                req.on('error', () => resolve({ vendor: 'Genérico', name: `Device ${ip.split('.').pop()}` }));
+                req.setTimeout(800, () => { req.abort(); resolve({ vendor: 'Genérico', name: `Device ${ip.split('.').pop()}` }); });
+            });
+        };
+
+        const promises = [];
+        // Scan limitado para ser rápido (apenas 50 ips vizinhos ou full se quiser)
+        // Vamos fazer full 1-254 em batches
+        for (let i = 1; i < 255; i++) {
+            promises.push(checkPort(`${subnet}.${i}`));
+        }
+
+        const results = await Promise.all(promises);
+        const found = results.filter(r => r !== null);
+
+        res.json({ subnet, devices: found });
+
+    } catch (e) {
+        console.error("Scan Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- Invoices Routes (100% CLOUD) ---
+app.get('/api/invoices', async (req, res) => {
+    const { clientId, invoiceId, gymId } = req.query;
+    try {
+        let query = supabase.from('invoices').select('*').order('date', { ascending: false });
+        if (invoiceId) query = query.eq('id', invoiceId).single();
+        else if (clientId) query = query.eq('client_id', clientId);
+        else if (gymId) query = query.eq('gym_id', gymId);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const process = (r) => ({ ...r, items: (typeof r.items === 'string' ? JSON.parse(r.items) : r.items) || [] });
+        res.json(Array.isArray(data) ? data.map(process) : (data ? process(data) : []));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/invoices', async (req, res) => {
+    const { id, client_id, client_name, amount, status, items, date, payment_method, gym_id } = req.body;
+    try {
+        const { error } = await supabase.from('invoices').upsert({
+            id, client_id, client_name, amount, status, items: JSON.stringify(items), date, payment_method, gym_id: gym_id || 'hefel_gym_v1'
+        });
+        if (error) throw error;
+        res.json({ id, status: 'saved' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/invoices/:id/void', (req, res) => {
+    const { reason } = req.body;
+    db.run("UPDATE invoices SET status = 'anulada', void_reason = ?, synced = 0 WHERE id = ?", [reason, req.params.id], (err) => {
+        if (err) res.status(500).json(err);
+        else {
+            res.json({ status: 'ok' });
+            setTimeout(syncToCloud, 500);
+        }
+    });
+});
+
+// === SYSTEM USERS MODULE (100% CLOUD) ===
+app.get('/api/system-users', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('system_users').select('*').order('name', { ascending: true });
+        if (error) throw error;
+        res.json(data || []);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/system-users', async (req, res) => {
+    const { id, name, email, password, role, gymId } = req.body;
+    try {
+        const targetId = id || uuidv4();
+        const { error } = await supabase.from('system_users').upsert({
+            id: targetId, name, email, password, role, gym_id: gymId || 'hefel_gym_v1'
+        });
+        if (error) throw error;
+        res.json({ success: true, id: targetId, message: "Utilizador guardado na nuvem." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/system-users/:id', async (req, res) => {
+    const { name, email, password, role, gymId, status } = req.body;
+    try {
+        const { error } = await supabase.from('system_users').update({
+            name, email, password, role, gym_id: gymId, status
+        }).eq('id', req.params.id);
+        if (error) throw error;
+        res.json({ success: true, message: "Utilizador atualizado." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Pay Invoice Endpoint
+app.put('/api/invoices/:id/pay', (req, res) => {
+    const { payment_method, payment_ref } = req.body;
+    db.run("UPDATE invoices SET status = 'pago', payment_method = ?, payment_ref = ?, synced = 0 WHERE id = ?",
+        [payment_method, payment_ref, req.params.id], (err) => {
+            if (err) res.status(500).json(err);
+            else {
+                res.json({ status: 'ok' });
+                setTimeout(syncToCloud, 500);
+            }
+        }
+    );
+});
+
+// Subscription
+app.get('/api/subscription', async (req, res) => {
+    const gymId = await getGymId();
+    if (!gymId) return res.json({ status: 'setup_required' });
+    db.get("SELECT * FROM saas_subscriptions WHERE gym_id = ?", [gymId], (err, row) => {
+        if (!row) return res.json({ status: 'trial' });
+        let features = {}; try { features = JSON.parse(row.features || '{}'); } catch (e) { }
+        res.json({ ...row, features });
+    });
+});
+
+// AUTO-EXPIRE USERS
+app.post('/api/clients/check-inactive', (req, res) => {
+    const inactiveDays = req.body.days || 60;
+    db.run(`UPDATE clients SET status = 'inactive', synced = 0 WHERE status = 'active' AND (last_access IS NOT NULL AND date(last_access) < date('now', '-${inactiveDays} days'))`, function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ status: 'ok', markedInactive: this.changes });
+    });
+});
+
+// Agendar limpeza diária
+setInterval(() => {
+    const inactiveDays = 60;
+    db.run(`UPDATE clients SET status = 'inactive', synced = 0 WHERE status = 'active' AND (last_access IS NOT NULL AND date(last_access) < date('now', '-${inactiveDays} days'))`, (err) => {
+        if (!err) console.log("🧹 Limpeza automática de inativos realizada.");
+    });
+}, 24 * 60 * 60 * 1000);
+
+// ========== PAYROLL HISTORY ROUTES ==========
+app.get('/api/payroll-history', (req, res) => {
+    db.all('SELECT * FROM payroll_history ORDER BY year DESC, month DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/payroll-history', (req, res) => {
+    const { id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by } = req.body;
+    db.run(
+        `INSERT INTO payroll_history (id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by, synced) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [id, gym_id, month, year, month_name, snapshot_date, data, total_bruto, total_descontos, total_liquido, created_by],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 SERVIDOR LOCAL RODANDO NA PORTA ${PORT}`);
+});
