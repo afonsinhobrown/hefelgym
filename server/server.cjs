@@ -443,9 +443,48 @@ app.get('/api/admin/gyms', (req, res) => {
     });
 });
 
-// === AUTH MODULE (LOCAL) ===
-app.post('/api/login', (req, res) => {
+// === AUTH MODULE (LOCAL + CLOUD FALLBACK) ===
+app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
+
+    // 1. Tentar primeiro o Supabase (Se configurado, ele é a fonte da verdade na Nuvem)
+    if (supabase) {
+        try {
+            console.log(`[AUTH] Verificando login para ${email} no Supabase...`);
+            const { data: users, error: dbError } = await supabase
+                .from('system_users')
+                .select('*, gyms(name, address, nuit)')
+                .eq('email', email)
+                .eq('password', password)
+                .limit(1);
+
+            if (!dbError && users && users.length > 0) {
+                const user = users[0];
+                const gym = user.gyms || {};
+                console.log(`✅ Login Cloud Sucesso: ${user.name}`);
+                return res.json({
+                    success: true,
+                    user: {
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        id: user.id,
+                        gymId: user.gym_id,
+                        gym_name: gym.name || 'Ginásio'
+                    },
+                    company: {
+                        name: gym.name || 'Ginásio',
+                        address: gym.address || '',
+                        nuit: gym.nuit || ''
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("[AUTH] Erro ao consultar Supabase:", e.message);
+        }
+    }
+
+    // 2. Fallback para SQLite Local (Util para Desenvolvimento ou se a Nuvem falhar)
     db.get(`
         SELECT u.*, g.name as gym_name, g.address as gym_address, g.nuit as gym_nuit 
         FROM system_users u 
