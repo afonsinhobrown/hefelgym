@@ -45,6 +45,7 @@ const Login = () => {
                 console.log("✅ Login Sucesso (Supabase DB):", user.name);
                 session = {
                     user: user.name,
+                    email: user.email, // ADICIONADO: Garantir que o email vai para a sessão
                     role: user.role,
                     gymId: user.gym_id || 'hefel_gym_v1',
                     userId: user.id
@@ -63,8 +64,10 @@ const Login = () => {
                     if (localData.user) {
                         session = {
                             user: localData.user.name,
+                            email: localData.user.email, // ADICIONADO
                             role: localData.user.role,
-                            gymId: localData.user.gymId
+                            gymId: localData.user.gymId,
+                            userId: localData.user.id // ADICIONADO
                         };
                     }
                 }

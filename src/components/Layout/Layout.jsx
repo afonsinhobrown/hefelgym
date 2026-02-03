@@ -59,10 +59,11 @@ const Layout = () => {
 
     setIsSaving(true);
     try {
+      // Garantir que não perdemos o email ou nome ao trocar a senha
       await db.system_users.save({
         id: session.userId,
         name: session.user,
-        email: session.email,
+        email: session.email || email, // Usa o da sessão ou o digitado no login
         role: session.role,
         password: pwdData.next
       });
