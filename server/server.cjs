@@ -429,7 +429,7 @@ app.post('/api/admin/register-gym', (req, res) => {
                     res.status(500).json({ error: "Erro ao criar ginásio: " + commitErr.message });
                 } else {
                     res.json({ success: true, gymId, message: "Ginásio, Admin e Dados Base criados com sucesso!" });
-                    setTimeout(syncToCloud, 500);
+                    if (!IS_CLOUD) setTimeout(syncToCloud, 500);
                 }
             });
 
@@ -1014,6 +1014,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
 
 // SYNC ENGINE
 const syncToCloud = async () => {
+    if (IS_CLOUD) return; // PARAGEM TOTAL E ABSOLUTA NO CLOUD
     if (!supabase || isSyncing) return;
     const GYM_ID = (await getGymId()) || 'hefel_gym_v1';
     if (!GYM_ID) return;
@@ -1196,7 +1197,7 @@ app.post('/api/config', (req, res) => {
     if (!gymId) return res.status(400).json({ error: 'Gym ID required' });
     db.run("INSERT OR REPLACE INTO system_config (key, value) VALUES ('gym_id', ?)", [gymId], (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        setTimeout(syncToCloud, 1000);
+        if (!IS_CLOUD) setTimeout(syncToCloud, 1000);
         res.json({ status: 'ok', gymId });
     });
 });
