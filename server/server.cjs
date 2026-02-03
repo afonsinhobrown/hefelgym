@@ -1012,154 +1012,8 @@ if (SUPABASE_URL && SUPABASE_KEY) {
     console.warn("⚠️ AVISO: Supabase não inicializado. Verifique SUPABASE_URL e SUPABASE_KEY no .env");
 }
 
-// SYNC ENGINE
-const syncToCloud = async () => {
-    if (IS_CLOUD) return; // PARAGEM TOTAL E ABSOLUTA NO CLOUD
-    if (!supabase || isSyncing) return;
-    const GYM_ID = (await getGymId()) || 'hefel_gym_v1';
-    if (!GYM_ID) return;
-
-    try {
-        const { error } = await supabase.from('plans').select('id').limit(1);
-        if (error) {
-            console.log("⚠️ Aviso Sync: Ligação ao Supabase indisponível no momento.");
-            isSyncing = false;
-            return false;
-        }
-    } catch (e) {
-        isSyncing = false;
-        return false;
-    }
-
-    isSyncing = true;
-    console.log(`🔄 SINCRONIZANDO (Ginásio: ${GYM_ID})...`);
-
-    try {
-        // UPLOAD (Local -> Cloud)
-        await new Promise((resolve) => {
-            db.all("SELECT * FROM invoices WHERE synced = 0", async (err, rows) => {
-                if (rows && rows.length) {
-                    console.log(`⬆️ Enviando ${rows.length} faturas...`);
-                    for (const row of rows) {
-                        const { synced, items, ...data } = row;
-                        await supabase.from('invoices').upsert({ ...data, gym_id: GYM_ID, items: JSON.parse(items || '[]') });
-                        db.run("UPDATE invoices SET synced = 1 WHERE id = ?", [row.id]);
-                    }
-                }
-                resolve();
-            });
-        });
-
-        await new Promise((resolve) => {
-            db.all("SELECT * FROM clients WHERE synced = 0", async (err, rows) => {
-                if (rows && rows.length) {
-                    console.log(`⬆️ Enviando ${rows.length} clientes...`);
-                    for (const row of rows) {
-                        const { synced, created_at, ...data } = row; // Ensure created_at matches Supabase expectations
-                        // if created_at is null, maybe omit it or set default
-                        await supabase.from('clients').upsert({
-                            ...data,
-                            gym_id: GYM_ID
-                        });
-                        db.run("UPDATE clients SET synced = 1 WHERE id = ?", [row.id]);
-                    }
-                }
-                resolve();
-            });
-        });
-
-        await new Promise((resolve) => {
-            db.all("SELECT * FROM system_users WHERE synced = 0", async (err, rows) => {
-                if (rows && rows.length) {
-                    console.log(`⬆️ Enviando ${rows.length} utilizadores...`);
-                    for (const row of rows) {
-                        const { synced, ...data } = row;
-                        await supabase.from('system_users').upsert(data);
-                        db.run("UPDATE system_users SET synced = 1 WHERE id = ?", [row.id]);
-                    }
-                }
-                resolve();
-            });
-        });
-
-        await new Promise((resolve) => {
-            db.all("SELECT * FROM gyms WHERE synced = 0", async (err, rows) => {
-                if (rows && rows.length) {
-                    console.log(`⬆️ Enviando ${rows.length} ginásios...`);
-                    for (const row of rows) {
-                        const { synced, ...data } = row;
-                        await supabase.from('gyms').upsert(data);
-                        db.run("UPDATE gyms SET synced = 1 WHERE id = ?", [row.id]);
-                    }
-                }
-                resolve();
-            });
-        });
-
-        // DOWNLOAD (Cloud -> Local) - RESTAURO DE DATOS DA NUVEM PARA MANTER LOCAL ATUALIZADO
-        // O Supabase é a fonte principal (especialmente para Vercel).
-        const { data: cloudInvoices } = await supabase.from('invoices').select('*').eq('gym_id', GYM_ID).order('date', { ascending: false }).limit(100);
-        if (cloudInvoices && cloudInvoices.length > 0) {
-            console.log(`⬇️ Sincronizando ${cloudInvoices.length} faturas recentes da nuvem...`);
-            db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO invoices (id, client_id, client_name, amount, status, items, date, payment_method, tax_amount, gym_id, synced) VALUES (?,?,?,?,?,?,?,?,?,?,1)`);
-                cloudInvoices.forEach(inv => {
-                    const itemsStr = typeof inv.items === 'string' ? inv.items : JSON.stringify(inv.items);
-                    stmt.run(inv.id, inv.client_id, inv.client_name, inv.amount, inv.status, itemsStr, inv.date, inv.payment_method, inv.tax_amount || 0, GYM_ID);
-                });
-                stmt.finalize();
-            });
-        }
-
-        const { data: cloudClients } = await supabase.from('clients').select('*').eq('gym_id', GYM_ID);
-        if (cloudClients && cloudClients.length > 0) {
-            console.log(`⬇️ Sincronizando ${cloudClients.length} clientes da nuvem...`);
-            db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO clients (id, name, phone, email, nuit, status, photo_url, created_at, synced, last_access, plan_id, gym_id) VALUES (?,?,?,?,?,?,?,?,1,?,?,?)`);
-                cloudClients.forEach(c => {
-                    stmt.run(c.id, c.name, c.phone, c.email, c.nuit, c.status, c.photo_url, c.created_at, c.last_access, c.plan_id, GYM_ID);
-                });
-                stmt.finalize();
-            });
-        }
-
-        const { data: cloudPlans } = await supabase.from('plans').select('*').eq('gym_id', GYM_ID);
-        if (cloudPlans && cloudPlans.length > 0) {
-            db.serialize(() => {
-                const stmt = db.prepare(`INSERT OR REPLACE INTO plans (id, name, price, duration, features, synced) VALUES (?,?,?,?,?,1)`);
-                cloudPlans.forEach(p => {
-                    stmt.run(p.id, p.name, p.price, p.duration || 30, typeof p.features === 'string' ? p.features : JSON.stringify(p.features || []), GYM_ID);
-                });
-                stmt.finalize();
-            });
-        }
-
-        // SYNC ALL TABLES (Upload)
-        const tablesToSync = ['clients', 'invoices', 'plans', 'locations', 'equipment', 'gym_expenses', 'product_expenses', 'instructors'];
-        for (const table of tablesToSync) {
-            await new Promise((resolve) => {
-                db.all(`SELECT * FROM ${table} WHERE synced = 0`, async (err, rows) => {
-                    if (rows && rows.length) {
-                        console.log(`⬆️ Enviando ${rows.length} registos de ${table}...`);
-                        for (const row of rows) {
-                            const { synced, ...data } = row;
-                            await supabase.from(table).upsert({ ...data, gym_id: GYM_ID });
-                            db.run(`UPDATE ${table} SET synced = 1 WHERE id = ?`, [row.id]);
-                        }
-                    }
-                    resolve();
-                });
-            });
-        }
-
-        return true;
-    } catch (error) {
-        console.error("❌ Erro no Sync:", error);
-        return false;
-    } finally {
-        isSyncing = false;
-    }
-};
+// SYNC ENGINE - COMPLETELY DISABLED
+const syncToCloud = async () => { return true; };
 
 // GET Client Details Endpoint
 app.get('/api/clients/:id', (req, res) => {
@@ -1170,21 +1024,9 @@ app.get('/api/clients/:id', (req, res) => {
         res.json(row);
     });
 });
-// Agendar sincronismo periódico apenas se NÃO estiver na nuvem
-if (!IS_CLOUD) {
-    setInterval(syncToCloud, 60000); // 1 minuto
-    console.log("🔄 Agente de Sincronismo Local Agendado (A cada 1 min)");
-} else {
-    console.log("🚀 MODO CLOUD PURO: Sincronismo de fundo desativado (Persistência Real-time ativa).");
-}
+
 app.post('/api/sync-force', async (req, res) => {
-    if (isSyncing) return res.status(429).json({ error: "Sincronização já em curso..." });
-    try {
-        await syncToCloud();
-        res.json({ status: 'success', message: 'Sincronização concluída com sucesso.' });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+    res.json({ status: 'success', message: 'Sync is disabled globally.' });
 });
 
 
