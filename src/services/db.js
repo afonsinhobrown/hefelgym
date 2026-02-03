@@ -74,6 +74,19 @@ export const db = {
                 gym_id: gymId
             }]);
             if (error) throw error;
+        },
+        delete: async (id) => {
+            const { error } = await supabase.from('system_users').delete().eq('id', id);
+            if (error) throw error;
+        }
+    },
+
+    instructors: {
+        getAll: async () => {
+            const gymId = getAuthGymId();
+            const { data, error } = await supabase.from('instructors').select('*').eq('gym_id', gymId).order('name');
+            if (error) throw error;
+            return data;
         }
     }
 };
