@@ -243,35 +243,54 @@ export const db = {
 
     expenses: {
         getAll: async () => {
-            const gymId = getAuthGymId();
-            if (USE_LOCAL_SERVER) return api.get(`expenses/gym?gymId=${gymId || ''}`);
-            return [];
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            if (USE_LOCAL_SERVER) return api.get(`expenses/gym?gymId=${gymId}`);
+
+            // Cloud Implementation
+            const { data, error } = await supabase.from('gym_expenses').select('*').eq('gym_id', gymId).order('date', { ascending: false });
+            if (error) throw error;
+            return data || [];
         },
         getProducts: async () => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
             if (USE_LOCAL_SERVER) return api.get('expenses/products');
-            return [];
+
+            const { data, error } = await supabase.from('product_expenses').select('*').eq('gym_id', gymId).order('date', { ascending: false });
+            if (error) throw error;
+            return data || [];
         },
         deleteProductExpense: async (id) => {
             if (USE_LOCAL_SERVER) return api.delete(`expenses/products/${id}`);
-            return;
+            const { error } = await supabase.from('product_expenses').delete().eq('id', id);
+            if (error) throw error;
         },
         createProductExpense: async (data) => {
-            if (USE_LOCAL_SERVER) return api.post('expenses/products', data);
-            throw new Error("Funcionalidade apenas local.");
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const payload = { ...data, id: data.id || `PEXP${Date.now()}`, gym_id: gymId };
+
+            if (USE_LOCAL_SERVER) return api.post('expenses/products', payload);
+
+            const { error } = await supabase.from('product_expenses').insert(payload);
+            if (error) throw error;
+            return payload;
         },
         getGym: async () => {
-            const gymId = getAuthGymId();
-            if (USE_LOCAL_SERVER) return api.get(`expenses/gym?gymId=${gymId || ''}`);
-            return [];
+            return db.expenses.getAll();
         },
         createGymExpense: async (data) => {
-            const gymId = getAuthGymId();
-            if (USE_LOCAL_SERVER) return api.post('expenses/gym', { ...data, gym_id: gymId });
-            return;
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
+            const payload = { ...data, id: data.id || `EXP${Date.now()}`, gym_id: gymId, date: new Date().toISOString() };
+
+            if (USE_LOCAL_SERVER) return api.post('expenses/gym', payload);
+
+            const { error } = await supabase.from('gym_expenses').insert(payload);
+            if (error) throw error;
+            return payload;
         },
         deleteGymExpense: async (id) => {
             if (USE_LOCAL_SERVER) return api.delete(`expenses/gym/${id}`);
-            return;
+            const { error } = await supabase.from('gym_expenses').delete().eq('id', id);
+            if (error) throw error;
         }
     },
 
@@ -419,12 +438,19 @@ export const db = {
     // Novo: Presenças (Mock inicial para evitar crash)
     attendance: {
         getAll: async () => {
+            const gymId = getAuthGymId() || 'hefel_gym_v1';
             if (USE_LOCAL_SERVER) return api.get('attendance');
-            return [];
+
+            const { data, error } = await supabase.from('attendance').select('*').eq('gym_id', gymId).order('timestamp', { ascending: false }).limit(500);
+            if (error) throw error;
+            return data || [];
         },
         getByUser: async (userId) => {
             if (USE_LOCAL_SERVER) return api.get(`attendance?userId=${userId}`);
-            return [];
+
+            const { data, error } = await supabase.from('attendance').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
+            if (error) throw error;
+            return data || [];
         }
     },
 

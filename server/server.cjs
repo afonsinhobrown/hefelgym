@@ -247,6 +247,8 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS gyms (id TEXT PRIMARY KEY, name TEXT, address TEXT, nuit TEXT, phone TEXT, email TEXT, logo_url TEXT, created_at TEXT, synced INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS system_users (id TEXT PRIMARY KEY, email TEXT UNIQUE, password TEXT, name TEXT, role TEXT, gym_id TEXT, sync_id TEXT, synced INTEGER DEFAULT 0)`);
 
+    /* 
+    // === SEED LOGIC DISABLED FOR CLEAN DELIVERY ===
     // 0. SEED: DEFAULT GYM (Hefel Gym Teste)
     db.get("SELECT id FROM gyms WHERE id = 'hefel_gym_v1'", (err, row) => {
         if (!row) {
@@ -259,7 +261,6 @@ db.serialize(() => {
     // 1. SEED: DEFAULT ADMIN (Local Gym)
     db.get("SELECT id FROM system_users WHERE email = 'admin@hefelgym.com'", (err, row) => {
         if (!row) {
-            // Role: gym_admin (Admin que vê tudo)
             db.run("INSERT INTO system_users (id, email, password, name, role, gym_id) VALUES ('admin_01', 'admin@hefelgym.com', 'admin', 'Administrador Local', 'gym_admin', 'hefel_gym_v1')");
             console.log("✅ Admin padrão criado (admin@hefelgym.com / admin)");
         }
@@ -283,6 +284,7 @@ db.serialize(() => {
             setTimeout(syncToCloud, 2000);
         }
     });
+    */
 
     // 4. SEED: DEFAULT PLANS (Based on Flyer Image + PT Image) - ALWAYS RUN
     console.log("🛠️ Verificando/Atualizando PACOTES OFICIAIS...");
@@ -951,19 +953,21 @@ const getGymId = () => {
 app.get('/api/sync-status', (req, res) => res.json({ isSyncing }));
 
 // === SUPABASE SYNC AGENT (BACKGROUND) ===
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 let supabase = null;
 
 if (SUPABASE_URL && SUPABASE_KEY) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("☁️ Agente de Sync Inicializado");
+    console.log("☁️ Agente de Sync Inicializado com URL:", SUPABASE_URL);
+} else {
+    console.warn("⚠️ AVISO: Supabase não inicializado. Verifique SUPABASE_URL e SUPABASE_KEY no .env");
 }
 
 // SYNC ENGINE
 const syncToCloud = async () => {
     if (!supabase || isSyncing) return;
-    const GYM_ID = await getGymId();
+    const GYM_ID = (await getGymId()) || 'hefel_gym_v1';
     if (!GYM_ID) return;
 
     try {
@@ -1081,8 +1085,8 @@ const syncToCloud = async () => {
             });
         }
 
-        // SYNC NEW TABLES (Upload)
-        const tablesToSync = ['locations', 'equipment', 'gym_expenses', 'instructors'];
+        // SYNC ALL TABLES (Upload)
+        const tablesToSync = ['clients', 'invoices', 'plans', 'locations', 'equipment', 'gym_expenses', 'product_expenses', 'instructors'];
         for (const table of tablesToSync) {
             await new Promise((resolve) => {
                 db.all(`SELECT * FROM ${table} WHERE synced = 0`, async (err, rows) => {
