@@ -12,6 +12,15 @@ const Layout = () => {
   const [pwdStatus, setPwdStatus] = useState({ type: '', msg: '' });
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setPwdStatus({ type: '', msg: '' });
+      setShowProfileModal(true);
+    };
+    window.addEventListener('open-profile-modal', handleOpenModal);
+    return () => window.removeEventListener('open-profile-modal', handleOpenModal);
+  }, []);
+
   // Monitorizar Sincronização (Bloqueio de Ecrã)
   useEffect(() => {
     const checkSync = async () => {

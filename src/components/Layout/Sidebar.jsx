@@ -67,16 +67,21 @@ const Sidebar = ({ onNavItemClick }) => {
     navigate('/login');
   };
 
+  const commonItems = [
+    { icon: UserIcon, label: 'O Meu Perfil', action: () => window.dispatchEvent(new CustomEvent('open-profile-modal')) },
+  ];
+
   const saasNavItems = [
     { icon: LayoutDashboard, label: 'Visão Geral', path: '/dashboard' },
+    ...commonItems,
     { icon: Building, label: 'Ginásios (Clientes)', path: '/admin/gyms' },
     { icon: Users, label: 'Utilizadores GYMAR', path: '/admin/users' },
     { icon: DollarSign, label: 'Financeiro SaaS', path: '/admin/finance' },
-    { icon: Settings, label: 'Configurações', path: '/settings' }
   ];
 
   const gymNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    ...commonItems,
     { icon: Smartphone, label: 'WhatsApp Bot', path: '/whatsapp' },
     { icon: ScanLine, label: 'Acessos', path: '/attendance' },
     { icon: Key, label: 'Hardware / Catracas', path: '/hardware' },
@@ -95,6 +100,7 @@ const Sidebar = ({ onNavItemClick }) => {
   ];
 
   const operatorNavItems = [
+    ...commonItems,
     { icon: ShoppingCart, label: 'Ponto de Venda', path: '/pos' },
     { icon: DollarSign, label: 'Mensalidades', path: '/payments' },
   ];
@@ -118,17 +124,29 @@ const Sidebar = ({ onNavItemClick }) => {
 
       <nav className="nav-menu">
         {itemsToShow.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.path}
-            onClick={onNavItemClick}
-            className={({ isActive }) =>
-              `nav-item ${isActive ? 'active' : ''}`
-            }
-          >
-            <div className="icon-box"><item.icon size={20} /></div>
-            <span>{item.label}</span>
-          </NavLink>
+          item.path ? (
+            <NavLink
+              key={item.label}
+              to={item.path}
+              onClick={onNavItemClick}
+              className={({ isActive }) =>
+                `nav-item ${isActive ? 'active' : ''}`
+              }
+            >
+              <div className="icon-box"><item.icon size={20} /></div>
+              <span>{item.label}</span>
+            </NavLink>
+          ) : (
+            <button
+              key={item.label}
+              onClick={() => { item.action(); onNavItemClick(); }}
+              className="nav-item"
+              style={{ border: 'none', width: '100%', textAlign: 'left', background: 'transparent', cursor: 'pointer' }}
+            >
+              <div className="icon-box"><item.icon size={20} /></div>
+              <span>{item.label}</span>
+            </button>
+          )
         ))}
       </nav>
 
