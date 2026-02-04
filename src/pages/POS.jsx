@@ -328,12 +328,8 @@ const POS = () => {
                 payment: paymentDetails
             };
 
-            console.log("Criando recibo para impressão:", receipt);
-
-            // Primeiro mostrar o recibo
-            setPrintingInvoice(receipt);
-
-            // Depois finalizar a venda
+            // Finalizar a venda - Deixar que o finalizeSale trate da impressão
+            // para evitar o disparo duplo do useEffect
             finalizeSale('pago', paymentDetails);
         }
     };
@@ -1392,43 +1388,38 @@ const POS = () => {
                 
                 @media print {
                     @page { margin: 0; size: auto; }
-                    body * { visibility: hidden; }
+                    /* Esconder TUDO por padrão */
+                    html, body, #root, .app-layout, .main-content, .page-content, .pos-page, .pos-container, header, sidebar {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
                     
-                    /* Show only the print modal container (as a reset wrapper) */
-                    .pos-print-modal, 
-                    .pos-print-modal .printable-area, 
-                    .pos-print-modal .printable-area * {
+                    /* Mostrar APENAS o modal e a área de impressão */
+                    .pos-print-modal {
+                        display: block !important;
                         visibility: visible !important;
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        background: white !important;
                     }
 
-                    .pos-print-modal {
-                        position: fixed !important;
-                        left: 0 !important;
-                        top: 0 !important;
-                        width: 100% !important;
-                        height: 100% !important;
-                        background: white !important;
+                    .printable-area, .printable-area * {
                         display: block !important;
-                        z-index: 999999 !important;
-                    }
-                    
-                    /* Hide controls within the modal */
-                    .pos-print-modal button, 
-                    .pos-print-modal p, 
-                    .pos-print-modal .flex {
-                        display: none !important;
+                        visibility: visible !important;
+                        color: black !important;
                     }
 
                     .printable-area {
-                        position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
-                        width: 80mm !important;
                         margin: 0 !important;
-                        background: white !important;
+                        width: 100% !important; /* Deixar que a largura do @page/papel controle */
                     }
 
-                    .no-print { display: none !important; }
+                    /* Esconder botões e avisos no papel */
+                    .pos-print-modal button, .pos-print-modal p {
+                        display: none !important;
+                    }
                 }
             `}</style>
         </div>

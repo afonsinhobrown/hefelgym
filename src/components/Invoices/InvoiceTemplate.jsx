@@ -421,8 +421,11 @@ const InvoiceTemplate = ({ invoice, onClose, isThermal = false, isPrintMode = fa
         .invoice-container.thermal h4, 
         .invoice-container.thermal p, 
         .invoice-container.thermal span,
+        .invoice-container.thermal strong,
+        .invoice-container.thermal td,
+        .invoice-container.thermal th,
         .invoice-container.thermal div {
-             color: #000000 !important; /* FORÇAR PRETO ABSOLUTO */
+             color: #000000 !important; /* FORÇAR PRETO ABSOLUTO EM TUDO */
         }
         .thermal-header { margin-bottom: 5mm; }
         .thermal-logo { max-width: 40mm; margin: 0 auto 2mm auto; display: block; filter: grayscale(100%); }
