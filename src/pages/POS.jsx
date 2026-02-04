@@ -428,11 +428,11 @@ const POS = () => {
                     try {
                         // Tentar download automático
                         const opt = {
-                            margin: 0,
+                            margin: [0, 0, 0, 0],
                             filename: `Recibo_${printingInvoice.id}.pdf`,
                             image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, logging: false },
-                            jsPDF: { unit: 'mm', format: [80, 200] }
+                            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+                            jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' }
                         };
 
                         // Executar html2pdf
@@ -1392,9 +1392,15 @@ const POS = () => {
                 
                 @media print {
                     @page { margin: 0; size: auto; }
-                    body * { visibility: hidden; height: 0; overflow: hidden; }
+                    body * { visibility: hidden; }
                     
                     /* Show only the print modal container (as a reset wrapper) */
+                    .pos-print-modal, 
+                    .pos-print-modal .printable-area, 
+                    .pos-print-modal .printable-area * {
+                        visibility: visible !important;
+                    }
+
                     .pos-print-modal {
                         position: fixed !important;
                         left: 0 !important;
@@ -1403,10 +1409,7 @@ const POS = () => {
                         height: 100% !important;
                         background: white !important;
                         display: block !important;
-                        visibility: visible !important;
                         z-index: 999999 !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
                     }
                     
                     /* Hide controls within the modal */
@@ -1416,20 +1419,12 @@ const POS = () => {
                         display: none !important;
                     }
 
-                    /* The Receipt Content itself */
-                    .printable-area, .printable-area * {
-                        visibility: visible !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                    }
-
                     .printable-area {
                         position: absolute !important;
                         left: 0 !important;
                         top: 0 !important;
                         width: 80mm !important;
                         margin: 0 !important;
-                        box-shadow: none !important;
                         background: white !important;
                     }
 

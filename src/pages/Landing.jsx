@@ -18,7 +18,7 @@ const Landing = () => {
                 <div className="nav-container">
                     <div className="brand" onClick={() => navigate('/')}>
                         <img
-                            src="/encubadora_logo.jpeg"
+                            src="/incubadora_logo.jpeg"
                             alt="Logo"
                             style={{ height: '40px', width: 'auto', borderRadius: '8px' }}
                         />
@@ -135,8 +135,8 @@ const Landing = () => {
                         <p>Transformando ginásios em negócios inteligentes em Moçambique.</p>
                         <div className="mt-8 pt-6 border-t border-white/10">
                             <p className="text-xs uppercase tracking-widest text-slate-500 mb-1">Desenvolvido por</p>
-                            <h4 className="font-bold text-white text-lg">ENCUBADORADESOLUÇÕES</h4>
-                            <p className="text-xs text-primary">#ENCUBADORADESOLUCOES</p>
+                            <h4 className="font-bold text-white text-lg">INCUBADORADESOLUÇÕES</h4>
+                            <p className="text-xs text-primary">#INCUBADORADESOLUCOES</p>
                         </div>
                     </div>
                     <div className="footer-links-grid">
