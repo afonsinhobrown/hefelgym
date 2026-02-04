@@ -9,7 +9,10 @@ import {
   DownloadCloud,
   X,
   Send,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Command,
+  ArrowRight
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -98,8 +101,34 @@ const Dashboard = () => {
 
   const [viewDetails, setViewDetails] = useState({ open: false, title: '', items: [] });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [featureSearch, setFeatureSearch] = useState('');
+  const [showFeatureResults, setShowFeatureResults] = useState(false);
 
   const navigate = useNavigate();
+
+  const allFeatures = [
+    { name: 'Ponto de Venda (POS)', path: '/pos', icon: '🛒', desc: 'Venda de produtos e planos' },
+    { name: 'Gestão de Utentes', path: '/users', icon: '👥', desc: 'Clientes e matriculas' },
+    { name: 'Inventário / Stock', path: '/inventory', icon: '📦', desc: 'Controlo de produtos e equipamentos' },
+    { name: 'Faturação e Recibos', path: '/invoices', icon: '📄', desc: 'Histórico de faturas e pagamentos' },
+    { name: 'Mensalidades em Atraso', path: '/payments', icon: '💰', desc: 'Gestão de dívidas de planos' },
+    { name: 'Equipa e Salários (Folha)', path: '/instructors', icon: '💼', desc: 'Gestão de staff e pagamentos' },
+    { name: 'Controlo de Acessos', path: '/attendance', icon: '🎫', desc: 'Logs de entrada e saída' },
+    { name: 'Hardware / Catracas', path: '/hardware', icon: '⚙️', desc: 'Configuração de dispositivos' },
+    { name: 'Planos e Preços', path: '/plans', icon: '💳', desc: 'Configurar mensalidades' },
+    { name: 'Aulas e Calendário', path: '/classes', icon: '🗓️', desc: 'Horários do ginásio' },
+    { name: 'Treinos e Exercícios', path: '/trainings', icon: '🏋️', desc: 'Fichas de treino' },
+    { name: 'Relatórios Gerais', path: '/reports', icon: '📊', desc: 'Análise de dados' },
+    { name: 'WhatsApp Connect', path: '/whatsapp', icon: '📱', desc: 'Ligar bot de mensagens' },
+    { name: 'Finanças (Geral)', path: '/finance', icon: '🏦', desc: 'Fluxo de caixa' },
+    { name: 'Configurações do Ginásio', path: '/settings', icon: '🛠️', desc: 'Dados da empresa e taxas' },
+    { name: 'Gestão de Acessos (Logins)', path: '/admin/users', icon: '🔑', desc: 'Gerir operadores e gerentes' }
+  ];
+
+  const filteredFeatures = allFeatures.filter(f =>
+    f.name.toLowerCase().includes(featureSearch.toLowerCase()) ||
+    f.desc.toLowerCase().includes(featureSearch.toLowerCase())
+  );
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
@@ -254,6 +283,52 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard animate-fade-in">
+      <div className="search-overlay-trigger" style={{ marginBottom: '2rem' }}>
+        <div className="card glass search-wrapper">
+          <Search size={20} className="text-muted" />
+          <input
+            type="text"
+            placeholder="O que procura? (ex: 'Salários', 'Vendas', 'Treinos'...)"
+            className="feature-search-input"
+            value={featureSearch}
+            onChange={(e) => {
+              setFeatureSearch(e.target.value);
+              setShowFeatureResults(e.target.value.length > 0);
+            }}
+            onFocus={() => featureSearch.length > 0 && setShowFeatureResults(true)}
+          />
+          <div className="search-shortcut">
+            <Command size={14} className="mr-1" /> K
+          </div>
+
+          {showFeatureResults && (
+            <div className="feature-results-list animate-scale-in">
+              <div className="results-header">
+                <span>Sugestões de Atalhos</span>
+                <button onClick={() => setShowFeatureResults(false)} className="close-results"><X size={16} /></button>
+              </div>
+              <div className="results-grid">
+                {filteredFeatures.length === 0 ? (
+                  <div className="p-8 text-center text-muted">Nenhuma funcionalidade encontrada.</div>
+                ) : filteredFeatures.map((feature, idx) => (
+                  <div
+                    key={idx}
+                    className="feature-item"
+                    onClick={() => navigate(feature.path)}
+                  >
+                    <div className="feature-icon">{feature.icon}</div>
+                    <div className="feature-info">
+                      <div className="feature-name">{feature.name}</div>
+                      <div className="feature-desc">{feature.desc}</div>
+                    </div>
+                    <ArrowRight size={16} className="feature-arrow" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: '800' }}>Painel de Controlo</h1>
@@ -564,6 +639,131 @@ const Dashboard = () => {
         }
         .activity-amount.text-success { color: var(--success); }
         .activity-amount.text-warning { color: #f59e0b; }
+
+        /* Feature Search Styles */
+        .search-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem 1.5rem !important;
+          position: relative;
+          background: rgba(15, 23, 42, 0.4) !important;
+          border: 1px solid rgba(249, 115, 22, 0.2) !important;
+        }
+
+        .feature-search-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: white;
+          font-size: 1rem;
+          outline: none;
+          font-family: inherit;
+        }
+
+        .search-shortcut {
+          display: flex;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 4px 8px;
+          border-radius: 6px;
+          color: var(--text-muted);
+          font-size: 0.75rem;
+          border: 1px solid var(--border);
+        }
+
+        .feature-results-list {
+          position: absolute;
+          top: calc(100% + 10px);
+          left: 0;
+          right: 0;
+          background: #1e293b;
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          z-index: 100;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+          overflow: hidden;
+          backdrop-filter: blur(20px);
+        }
+
+        .results-header {
+          padding: 12px 1.5rem;
+          background: rgba(0,0,0,0.2);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          font-weight: 800;
+          color: var(--primary);
+          border-bottom: 1px solid var(--border);
+        }
+
+        .close-results {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+        }
+
+        .results-grid {
+          max-height: 400px;
+          overflow-y: auto;
+          padding: 8px;
+        }
+
+        .feature-item {
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          padding: 12px 1rem;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .feature-item:hover {
+          background: rgba(249, 115, 22, 0.1);
+        }
+
+        .feature-icon {
+          font-size: 1.5rem;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,0.03);
+          border-radius: 8px;
+        }
+
+        .feature-info {
+          flex: 1;
+        }
+
+        .feature-name {
+          font-weight: 700;
+          font-size: 0.95rem;
+          color: white;
+        }
+
+        .feature-desc {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+        }
+
+        .feature-arrow {
+          color: var(--text-muted);
+          opacity: 0;
+          transform: translateX(-10px);
+          transition: all 0.2s;
+        }
+
+        .feature-item:hover .feature-arrow {
+          opacity: 1;
+          transform: translateX(0);
+          color: var(--primary);
+        }
       `}</style>
     </div>
   );

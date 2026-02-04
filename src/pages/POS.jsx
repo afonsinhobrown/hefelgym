@@ -471,6 +471,9 @@ const POS = () => {
             duration: p.duration
         }))
     ).filter(p => {
+        // Apenas produtos ativos ou que não tenham status (planos ou migração pendente)
+        if (p.status && p.status !== 'active') return false;
+
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
         if (!matchesSearch) return false;
 

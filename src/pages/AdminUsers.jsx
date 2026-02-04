@@ -7,7 +7,8 @@ const AdminUsers = () => {
     const [staffList, setStaffList] = useState([]); // Store Staff for dropdown
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [formData, setFormData] = useState({ id: null, name: '', email: '', password: '', role: 'operator', staffId: null, status: 'active' });
+    const [formData, setFormData] = useState({ id: null, name: '', email: '', password: '', role: 'operator', staffId: null, status: 'active', assigned_locations: [] });
+    const [locations, setLocations] = useState([]);
     const [session, setSession] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -16,7 +17,17 @@ const AdminUsers = () => {
         setSession(sess);
         fetchUsers();
         loadStaff(); // Load staff for the dropdown
+        loadLocations();
     }, []);
+
+    const loadLocations = async () => {
+        try {
+            const data = await db.locations.getAll();
+            setLocations(data || []);
+        } catch (e) {
+            console.error("Error loading locations:", e);
+        }
+    };
 
     const loadStaff = async () => {
         try {
@@ -49,7 +60,7 @@ const AdminUsers = () => {
             await db.system_users.save(formData);
             alert(formData.id ? 'Utilizador atualizado!' : 'Utilizador criado!');
             setShowModal(false);
-            setFormData({ id: null, name: '', email: '', password: '', role: 'operator', status: 'active' });
+            setFormData({ id: null, name: '', email: '', password: '', role: 'operator', status: 'active', assigned_locations: [] });
             fetchUsers();
         } catch (error) {
             alert('Erro ao salvar utilizador: ' + error.message);
@@ -73,7 +84,12 @@ const AdminUsers = () => {
     };
 
     const openEdit = (user) => {
-        setFormData({ ...user, password: '' });
+        let assigned = [];
+        try {
+            assigned = user.assigned_locations ? (typeof user.assigned_locations === 'string' ? JSON.parse(user.assigned_locations) : user.assigned_locations) : [];
+        } catch (e) { console.error(e); }
+
+        setFormData({ ...user, password: '', assigned_locations: assigned });
         setShowModal(true);
     };
 
@@ -268,6 +284,31 @@ const AdminUsers = () => {
                                         </select>
                                     </div>
                                 </div>
+
+                                {/* Assigned Locations (Only for Operators and Managers) */}
+                                {formData.role !== 'gym_admin' && (
+                                    <div style={{ marginTop: '8px' }}>
+                                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>Locais Autorizados</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', backgroundColor: '#020617', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                                            {locations.length === 0 ? <p style={{ fontSize: '11px', color: '#64748b' }}>Nenhum local configurado no Inventário.</p> : locations.map(loc => (
+                                                <label key={loc.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.assigned_locations?.includes(loc.id)}
+                                                        onChange={(e) => {
+                                                            const current = formData.assigned_locations || [];
+                                                            const next = e.target.checked
+                                                                ? [...current, loc.id]
+                                                                : current.filter(id => id !== loc.id);
+                                                            setFormData({ ...formData, assigned_locations: next });
+                                                        }}
+                                                    />
+                                                    {loc.name}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div style={{ display: 'flex', gap: '12px' }}>

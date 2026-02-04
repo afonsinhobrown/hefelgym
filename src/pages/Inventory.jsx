@@ -24,7 +24,7 @@ import html2canvas from 'html2canvas';
 import InventoryReportTemplate from '../components/Reports/InventoryReportTemplate';
 import { DownloadCloud } from 'lucide-react';
 
-const ProductModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
+const ProductModal = ({ isOpen, onClose, onSave, initialData, locations, isAdmin }) => {
     const [formData, setFormData] = useState({
         name: '',
         price: '',
@@ -111,14 +111,15 @@ const ProductModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
                         <label>URL da Imagem do Produto</label>
                         <input type="text" className="input w-full" placeholder="https://exemplo.com/imagem.png" value={formData.photo_url} onChange={e => setFormData({ ...formData, photo_url: e.target.value })} />
                     </div>
-                    <div className="modal-footer">
-                        <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
-                        <button type="submit" className="btn btn-primary">Salvar</button>
-                    </div>
-                </form>
             </div>
-        </div>
-    );
+            <div className="modal-footer">
+                <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
+                <button type="submit" className="btn btn-primary">{initialData ? 'Salvar Alterações' : (isAdmin ? 'Criar Produto' : 'Submeter para Aprovação')}</button>
+            </div>
+        </form>
+        </div >
+    </div >
+);
 };
 
 const EquipmentModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
@@ -315,9 +316,14 @@ const Inventory = () => {
     const [editingItem, setEditingItem] = useState(null);
     const [restockingItem, setRestockingItem] = useState(null);
 
+    const [userSession, setUserSession] = useState({});
+
     const loadData = async () => {
         try {
             setLoading(true);
+            const sess = JSON.parse(localStorage.getItem('gymar_session') || '{}');
+            setUserSession(sess);
+
             await db.init();
             const [p, e, l, pex, gex, invs] = await Promise.all([
                 db.inventory.getAll(),
@@ -351,6 +357,31 @@ const Inventory = () => {
             setSales(prodSales);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
+    };
+
+    const isAdmin = userSession.role === 'super_admin' || userSession.role === 'gym_admin';
+    const assignedLocations = useMemo(() => {
+        if (isAdmin) return locations;
+        try {
+            const locIds = userSession.assigned_locations ? (typeof userSession.assigned_locations === 'string' ? JSON.parse(userSession.assigned_locations) : userSession.assigned_locations) : [];
+            if (Array.isArray(locIds) && locIds.length > 0) {
+                return locations.filter(l => locIds.includes(l.id));
+            }
+        } catch (e) { console.error(e); }
+        return locations;
+    }, [isAdmin, locations, userSession.assigned_locations]);
+
+    const handleApprove = async (id) => {
+        await db.inventory.approve(id);
+        alert("Produto aprovado e ativado!");
+        loadData();
+    };
+
+    const handleReject = async (id) => {
+        if (confirm("Rejeitar e eliminar este pedido?")) {
+            await db.inventory.reject(id);
+            loadData();
+        }
     };
 
     useEffect(() => { loadData(); }, []);
@@ -417,15 +448,21 @@ const Inventory = () => {
                     <p>Gestão de Produtos, Equipamentos e Armazenamento</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="btn btn-outline" onClick={() => generateReport()}>
-                        <DownloadCloud size={18} className="mr-2" /> Relatório PDF
-                    </button>
-                    <button className="btn btn-outline" onClick={() => setIsLocationModalOpen(true)}>
-                        <MapPin size={18} className="mr-2" /> Gerir Locais
-                    </button>
+                </div>
+                <div className="flex gap-2">
+                    {isAdmin && (
+                        <>
+                            <button className="btn btn-outline" onClick={() => generateReport()}>
+                                <DownloadCloud size={18} className="mr-2" /> Relatório PDF
+                            </button>
+                            <button className="btn btn-outline" onClick={() => setIsLocationModalOpen(true)}>
+                                <MapPin size={18} className="mr-2" /> Gerir Locais
+                            </button>
+                        </>
+                    )}
                     {activeTab === 'products' ? (
                         <button className="btn btn-primary" onClick={() => { setEditingItem(null); setIsProductModalOpen(true); }}>
-                            <Plus size={18} className="mr-2" /> Novo Produto
+                            <Plus size={18} className="mr-2" /> {isAdmin ? 'Novo Produto' : 'Sugerir Produto'}
                         </button>
                     ) : activeTab === 'equipment' ? (
                         <button className="btn btn-primary" onClick={() => { setEditingItem(null); setIsEquipmentModalOpen(true); }}>
@@ -435,33 +472,35 @@ const Inventory = () => {
                 </div>
             </div>
 
-            <div className="inventory-stats grid grid-cols-4 gap-4 mb-6">
-                <div className="stat-card">
-                    <span className="text-muted text-xs uppercase font-bold">Património Total</span>
-                    <h3 className="text-xl font-bold">{equipment.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0).toLocaleString()} MT</h3>
-                    <small className="text-primary">{equipment.length} Máquinas</small>
+            {isAdmin && (
+                <div className="inventory-stats grid grid-cols-4 gap-4 mb-6">
+                    <div className="stat-card">
+                        <span className="text-muted text-xs uppercase font-bold">Património Total</span>
+                        <h3 className="text-xl font-bold">{equipment.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0).toLocaleString()} MT</h3>
+                        <small className="text-primary">{equipment.length} Máquinas</small>
+                    </div>
+                    <div className="stat-card">
+                        <span className="text-muted text-xs uppercase font-bold">Valor Inventário</span>
+                        <h3 className="text-xl font-bold">{products.reduce((acc, curr) => acc + (curr.price * curr.stock), 0).toLocaleString()} MT</h3>
+                        <small className="text-success">Preço de Venda</small>
+                    </div>
+                    <div className="stat-card">
+                        <span className="text-muted text-xs uppercase font-bold">Rupturas Stock</span>
+                        <h3 className="text-xl font-bold text-red-400">{products.filter(p => p.stock <= 0).length}</h3>
+                        <small className="text-red-500/70">Produtos esgotados</small>
+                    </div>
+                    <div className="stat-card">
+                        <span className="text-muted text-xs uppercase font-bold">Gastos Mensais</span>
+                        <h3 className="text-xl font-bold">
+                            {expenses
+                                .filter(ex => new Date(ex.date).getMonth() === new Date().getMonth())
+                                .reduce((acc, curr) => acc + (Number(curr.total_cost || curr.amount) || 0), 0)
+                                .toLocaleString()} MT
+                        </h3>
+                        <small className="text-muted">Total despesas este mês</small>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <span className="text-muted text-xs uppercase font-bold">Valor Inventário</span>
-                    <h3 className="text-xl font-bold">{products.reduce((acc, curr) => acc + (curr.price * curr.stock), 0).toLocaleString()} MT</h3>
-                    <small className="text-success">Preço de Venda</small>
-                </div>
-                <div className="stat-card">
-                    <span className="text-muted text-xs uppercase font-bold">Rupturas Stock</span>
-                    <h3 className="text-xl font-bold text-red-400">{products.filter(p => p.stock <= 0).length}</h3>
-                    <small className="text-red-500/70">Produtos esgotados</small>
-                </div>
-                <div className="stat-card">
-                    <span className="text-muted text-xs uppercase font-bold">Gastos Mensais</span>
-                    <h3 className="text-xl font-bold">
-                        {expenses
-                            .filter(ex => new Date(ex.date).getMonth() === new Date().getMonth())
-                            .reduce((acc, curr) => acc + (Number(curr.total_cost || curr.amount) || 0), 0)
-                            .toLocaleString()} MT
-                    </h3>
-                    <small className="text-muted">Total despesas este mês</small>
-                </div>
-            </div>
+            )}
 
             <div className="search-bar-container">
                 <div className="search-bar">
@@ -475,9 +514,16 @@ const Inventory = () => {
                     <button className={`tab-btn ${activeTab === 'equipment' ? 'active' : ''}`} onClick={() => setActiveTab('equipment')}>
                         <Dumbbell size={18} className="mr-2" /> Máquinas/Equipamento
                     </button>
-                    <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
-                        <History size={18} className="mr-2" /> Histórico Gastos
-                    </button>
+                    {isAdmin && (
+                        <>
+                            <button className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
+                                <RefreshCw size={18} className="mr-2" /> Pendentes Aprovação
+                            </button>
+                            <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+                                <History size={18} className="mr-2" /> Histórico Gastos
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -488,7 +534,7 @@ const Inventory = () => {
                     <table className="data-table">
                         <thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Local</th><th>Stock</th><th>Preço</th><th>Ações</th></tr></thead>
                         <tbody>
-                            {filteredProducts.map(p => (
+                            {filteredProducts.filter(p => !p.status || p.status === 'active').map(p => (
                                 <tr key={p.id}>
                                     <td>
                                         <div className="product-img-mini">
@@ -502,9 +548,9 @@ const Inventory = () => {
                                     <td>{p.price.toLocaleString()} MT</td>
                                     <td>
                                         <div className="actions-cell">
-                                            <button className="icon-btn" title="Repor Stock" onClick={() => { setRestockingItem(p); setIsRestockModalOpen(true); }}><ArrowUpCircle size={16} /></button>
+                                            {isAdmin && <button className="icon-btn" title="Repor Stock" onClick={() => { setRestockingItem(p); setIsRestockModalOpen(true); }}><ArrowUpCircle size={16} /></button>}
                                             <button className="icon-btn" title="Editar" onClick={() => { setEditingItem(p); setIsProductModalOpen(true); }}><Edit2 size={16} /></button>
-                                            <button className="icon-btn danger" title="Eliminar" onClick={() => deleteProduct(p.id)}><Trash2 size={16} /></button>
+                                            {isAdmin && <button className="icon-btn danger" title="Eliminar" onClick={() => deleteProduct(p.id)}><Trash2 size={16} /></button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -532,6 +578,29 @@ const Inventory = () => {
                                         <div className="actions-cell">
                                             <button className="icon-btn" onClick={() => { setEditingItem(e); setIsEquipmentModalOpen(true); }}><Edit2 size={16} /></button>
                                             <button className="icon-btn danger" onClick={() => deleteEquipment(e.id)}><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : activeTab === 'pending' ? (
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead><tr><th>Produto</th><th>Categoria</th><th>Local</th><th>Stock</th><th>Preço</th><th>Ações</th></tr></thead>
+                        <tbody>
+                            {products.filter(p => p.status === 'pending').map(p => (
+                                <tr key={p.id}>
+                                    <td><strong>{p.name}</strong></td>
+                                    <td>{p.category}</td>
+                                    <td>{locations.find(l => String(l.id) === String(p.location_id))?.name || '---'}</td>
+                                    <td>{p.stock} un</td>
+                                    <td>{p.price.toLocaleString()} MT</td>
+                                    <td>
+                                        <div className="actions-cell">
+                                            <button className="btn btn-primary btn-sm" onClick={() => handleApprove(p.id)}>Aprovar</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => handleReject(p.id)}>Rejeitar</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -569,8 +638,8 @@ const Inventory = () => {
                 </div>
             )}
 
-            <ProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} onSave={handleSaveProduct} initialData={editingItem} locations={locations} />
-            <EquipmentModal isOpen={isEquipmentModalOpen} onClose={() => setIsEquipmentModalOpen(false)} onSave={handleSaveEquipment} initialData={editingItem} locations={locations} />
+            <ProductModal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} onSave={handleSaveProduct} initialData={editingItem} locations={assignedLocations} isAdmin={isAdmin} />
+            <EquipmentModal isOpen={isEquipmentModalOpen} onClose={() => setIsEquipmentModalOpen(false)} onSave={handleSaveEquipment} initialData={editingItem} locations={assignedLocations} />
             <LocationModal isOpen={isLocationModalOpen} onClose={() => setIsLocationModalOpen(false)} onSave={handleSaveLocation} />
             <RestockModal isOpen={isRestockModalOpen} onClose={() => setIsRestockModalOpen(false)} product={restockingItem} onSave={handleRestock} />
             <GeneralExpenseModal isOpen={isGeneralExpenseModalOpen} onClose={() => setIsGeneralExpenseModalOpen(false)} onSave={handleSaveGeneralExpense} />
@@ -632,7 +701,7 @@ const Inventory = () => {
                 }
                 .product-img-mini img { width: 100%; height: 100%; object-fit: cover; }
             `}</style>
-        </div>
+        </div >
     );
 };
 

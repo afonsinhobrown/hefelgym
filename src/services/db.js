@@ -14,17 +14,52 @@ export const db = {
 
     inventory: {
         getAll: async () => {
-            const gymId = getAuthGymId();
-            const { data, error } = await supabase.from('products').select('*').eq('gym_id', gymId);
+            const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
+            const gymId = session?.gymId || 'hefel_gym_v1';
+            const userRole = session?.role;
+            const userId = session?.userId;
+
+            let query = supabase.from('products').select('*').eq('gym_id', gymId);
+
+            // Se for operador, filtrar por locais atribuídos (se houver)
+            if (userRole === 'operator' || userRole === 'manager') {
+                const { data: userData } = await supabase.from('system_users').select('assigned_locations').eq('id', userId).single();
+                if (userData?.assigned_locations) {
+                    try {
+                        const locIds = JSON.parse(userData.assigned_locations);
+                        if (Array.isArray(locIds) && locIds.length > 0) {
+                            query = query.in('location_id', locIds);
+                        }
+                    } catch (e) { console.error("Erro parsing assigned_locations", e); }
+                }
+            }
+
+            const { data, error } = await query;
             if (error) throw error;
             return data.map(p => ({ ...p, price: Number(p.price), cost_price: Number(p.cost_price || 0) }));
         },
         create: async (data) => {
-            const gymId = getAuthGymId();
-            const payload = { ...data, id: data.id || `PRD${Date.now()}`, gym_id: gymId };
+            const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
+            const gymId = session?.gymId || 'hefel_gym_v1';
+            const userRole = session?.role;
+
+            const payload = {
+                ...data,
+                id: data.id || `PRD${Date.now()}`,
+                gym_id: gymId,
+                status: userRole === 'super_admin' || userRole === 'gym_admin' ? 'active' : 'pending'
+            };
             const { error } = await supabase.from('products').insert(payload);
             if (error) throw error;
             return payload;
+        },
+        approve: async (id) => {
+            const { error } = await supabase.from('products').update({ status: 'active' }).eq('id', id);
+            if (error) throw error;
+        },
+        reject: async (id) => {
+            const { error } = await supabase.from('products').delete().eq('id', id);
+            if (error) throw error;
         },
         update: async (id, data) => {
             const { error } = await supabase.from('products').update(data).eq('id', id);
@@ -111,6 +146,28 @@ export const db = {
             if (error) throw error;
             return payload;
         },
+        createProductExpense: async (data) => {
+            const gymId = getAuthGymId();
+            const payload = {
+                ...data,
+                id: `PEX${Date.now()}`,
+                gym_id: gymId,
+                date: new Date().toISOString(),
+                total_cost: Number(data.quantity) * Number(data.unit_cost)
+            };
+            const { error } = await supabase.from('product_expenses').insert(payload);
+            if (error) throw error;
+
+            // Atualizar stock do produto
+            const { data: prod } = await supabase.from('products').select('stock').eq('id', data.product_id).single();
+            if (prod) {
+                await supabase.from('products')
+                    .update({ stock: Number(prod.stock) + Number(data.quantity) })
+                    .eq('id', data.product_id);
+            }
+
+            return payload;
+        },
         deleteGymExpense: async (id) => {
             const { error } = await supabase.from('gym_expenses').delete().eq('id', id);
             if (error) throw error;
@@ -184,6 +241,46 @@ export const db = {
         }
     },
 
+    equipment: {
+        getAll: async () => {
+            const gymId = getAuthGymId();
+            const { data, error } = await supabase.from('equipment').select('*').eq('gym_id', gymId);
+            if (error) throw error;
+            return data || [];
+        },
+        create: async (data) => {
+            const gymId = getAuthGymId();
+            const payload = { ...data, id: `EQP${Date.now()}`, gym_id: gymId };
+            const { error } = await supabase.from('equipment').insert(payload);
+            if (error) throw error;
+            return payload;
+        },
+        update: async (id, data) => {
+            const { error } = await supabase.from('equipment').update(data).eq('id', id);
+            if (error) throw error;
+        },
+        delete: async (id) => {
+            const { error } = await supabase.from('equipment').delete().eq('id', id);
+            if (error) throw error;
+        }
+    },
+
+    locations: {
+        getAll: async () => {
+            const gymId = getAuthGymId();
+            const { data, error } = await supabase.from('locations').select('*').eq('gym_id', gymId);
+            if (error) throw error;
+            return data || [];
+        },
+        create: async (data) => {
+            const gymId = getAuthGymId();
+            const payload = { ...data, id: `LOC${Date.now()}`, gym_id: gymId };
+            const { error } = await supabase.from('locations').insert(payload);
+            if (error) throw error;
+            return payload;
+        }
+    },
+
     system_users: {
         getAll: async () => {
             const gymId = getAuthGymId();
@@ -200,8 +297,8 @@ export const db = {
                 email: userData.email,
                 role: userData.role,
                 status: userData.status || 'active',
-                gym_id: gymId
-                // staff_id REMOVIDO pois não existe na tabela do Supabase
+                gym_id: gymId,
+                assigned_locations: userData.assigned_locations ? JSON.stringify(userData.assigned_locations) : null
             };
 
             if (userData.password) {
