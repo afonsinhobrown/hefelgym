@@ -112,14 +112,15 @@ const ProductModal = ({ isOpen, onClose, onSave, initialData, locations, isAdmin
                         <input type="text" className="input w-full" placeholder="https://exemplo.com/imagem.png" value={formData.photo_url} onChange={e => setFormData({ ...formData, photo_url: e.target.value })} />
                     </div>
             </div>
+
             <div className="modal-footer">
                 <button type="button" onClick={onClose} className="btn btn-secondary">Cancelar</button>
                 <button type="submit" className="btn btn-primary">{initialData ? 'Salvar Alterações' : (isAdmin ? 'Criar Produto' : 'Submeter para Aprovação')}</button>
             </div>
         </form>
+            </div >
         </div >
-    </div >
-);
+    );
 };
 
 const EquipmentModal = ({ isOpen, onClose, onSave, initialData, locations }) => {
