@@ -318,6 +318,7 @@ const Inventory = () => {
     const [restockingItem, setRestockingItem] = useState(null);
 
     const [userSession, setUserSession] = useState({});
+    const [realAssignedLocations, setRealAssignedLocations] = useState([]);
 
     const loadData = async () => {
         try {
@@ -326,6 +327,8 @@ const Inventory = () => {
             setUserSession(sess);
 
             await db.init();
+
+            // Carregar dados gerais
             const [p, e, l, pex, gex, invs] = await Promise.all([
                 db.inventory.getAll(),
                 db.equipment.getAll(),
@@ -334,9 +337,37 @@ const Inventory = () => {
                 db.expenses.getAll(),
                 db.invoices.getAll()
             ]);
+
             setProducts(Array.isArray(p) ? p : []);
             setEquipment(Array.isArray(e) ? e : []);
-            setLocations(Array.isArray(l) ? l : []);
+            const allLocations = Array.isArray(l) ? l : [];
+            setLocations(allLocations);
+
+            // CRÍTICO: Buscar permissões atualizadas diretamente da BD (Bypass LocalStorage cache)
+            if (sess.userId) {
+                const { data: userData, error } = await db.supabase
+                    .from('system_users')
+                    .select('assigned_locations')
+                    .eq('id', sess.userId)
+                    .single();
+
+                if (userData && userData.assigned_locations) {
+                    let locIds = userData.assigned_locations;
+                    if (typeof locIds === 'string') {
+                        try { locIds = JSON.parse(locIds); } catch { locIds = []; }
+                    }
+                    if (Array.isArray(locIds)) {
+                        const strIds = locIds.map(String);
+                        setRealAssignedLocations(allLocations.filter(loc => strIds.includes(String(loc.id))));
+                    }
+                } else if (!isAdmin) {
+                    setRealAssignedLocations([]); // Sem locais se não encontrar nada e não for admin
+                } else {
+                    setRealAssignedLocations(allLocations); // Admin vê tudo
+                }
+            } else {
+                if (isAdmin) setRealAssignedLocations(allLocations);
+            }
 
             // Unificar despesas para histórico
             const allExpenses = [
@@ -361,26 +392,8 @@ const Inventory = () => {
     };
 
     const isAdmin = userSession.role === 'super_admin' || userSession.role === 'gym_admin';
-    const assignedLocations = useMemo(() => {
-        if (isAdmin) return locations;
-        try {
-            const sess = userSession || {};
-            // Parse robusto de assigned_locations
-            let locIds = sess.assigned_locations;
-            if (typeof locIds === 'string') {
-                try { locIds = JSON.parse(locIds); } catch (e) { locIds = []; }
-            }
-            if (!Array.isArray(locIds)) locIds = [];
-
-            // Converter tudo para string para comparação segura
-            const strLocIds = locIds.map(id => String(id));
-
-            if (strLocIds.length > 0) {
-                return locations.filter(l => strLocIds.includes(String(l.id)));
-            }
-        } catch (e) { console.error("Erro assigned locations:", e); }
-        return [];
-    }, [isAdmin, locations, userSession]);
+    // Substituir lógica antiga de useMemo por estado direto
+    const assignedLocations = isAdmin ? locations : realAssignedLocations;
 
     const handleApprove = async (id) => {
         await db.inventory.approve(id);
