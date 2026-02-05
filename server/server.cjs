@@ -123,7 +123,8 @@ app.post('/api/invoices', async (req, res) => {
 
 // === ROTA CATCH-ALL (PARA SPA/REACT) ===
 // Qualquer rota que não seja /api deve retornar o index.html
-app.get('*', (req, res) => {
+// Express 5 regex fix: usar /(.*)/ para match all
+app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
