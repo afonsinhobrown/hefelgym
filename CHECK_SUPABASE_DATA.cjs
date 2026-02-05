@@ -10,21 +10,26 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 async function checkData() {
     console.log("🔍 Verificando dados no Supabase...");
 
-    const tables = ['products', 'equipment', 'locations', 'tenants'];
+    const gymTables = ['products', 'equipment', 'locations'];
 
-    for (const table of tables) {
-        const { data, error } = await supabase.from(table).select('gym_id', { count: 'exact' });
-        if (error) {
-            console.log(`❌ Tabela '${table}': Erro ou não existe - ${error.message}`);
-        } else {
-            const counts = {};
-            data.forEach(row => {
-                counts[row.gym_id] = (counts[row.gym_id] || 0) + 1;
-            });
-            console.log(`✅ Tabela '${table}': ${data.length} registos encontrados.`);
-            console.log(`   Distribuição:`, counts);
+    // Check tables that must have gym_id
+    for (const table of gymTables) {
+        try {
+            const { data, error } = await supabase.from(table).select('gym_id');
+            if (error) {
+                console.log(`❌ Tabela '${table}': Erro - ${error.message}`);
+            } else {
+                console.log(`✅ Tabela '${table}': ${data.length} registos (gym_id validado).`);
+            }
+        } catch (e) {
+            console.log(`❌ Tabela '${table}': Exceção - ${e.message}`);
         }
     }
+
+    // Check tenants (uses id)
+    const { data: tenants, error: tError } = await supabase.from('tenants').select('id');
+    if (tError) console.log(`❌ Tabela 'tenants': Erro - ${tError.message}`);
+    else console.log(`✅ Tabela 'tenants': ${tenants.length} registos.`);
 }
 
 checkData();
