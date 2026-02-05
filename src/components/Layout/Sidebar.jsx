@@ -103,6 +103,7 @@ const Sidebar = ({ onNavItemClick }) => {
     ...commonItems,
     { icon: ShoppingCart, label: 'Ponto de Venda', path: '/pos' },
     { icon: DollarSign, label: 'Mensalidades', path: '/payments' },
+    { icon: Package, label: 'Inventário', path: '/inventory' },
   ];
 
   let itemsToShow = [];
