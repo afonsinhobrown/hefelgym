@@ -364,13 +364,14 @@ const Inventory = () => {
     const assignedLocations = useMemo(() => {
         if (isAdmin) return locations;
         try {
-            const locIds = userSession.assigned_locations ? (typeof userSession.assigned_locations === 'string' ? JSON.parse(userSession.assigned_locations) : userSession.assigned_locations) : [];
+            const sess = userSession || {};
+            const locIds = sess.assigned_locations ? (typeof sess.assigned_locations === 'string' ? JSON.parse(sess.assigned_locations) : sess.assigned_locations) : [];
             if (Array.isArray(locIds) && locIds.length > 0) {
                 return locations.filter(l => locIds.includes(l.id));
             }
         } catch (e) { console.error(e); }
-        return locations;
-    }, [isAdmin, locations, userSession.assigned_locations]);
+        return []; // Default: Sem acesso se não tiver locais atribuídos
+    }, [isAdmin, locations, userSession]);
 
     const handleApprove = async (id) => {
         await db.inventory.approve(id);
@@ -419,16 +420,16 @@ const Inventory = () => {
 
     const filteredProducts = useMemo(() => {
         let filt = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
-        if (!isAdmin && assignedLocations.length > 0) {
+        if (!isAdmin) {
             const locIds = assignedLocations.map(l => l.id);
-            filt = filt.filter(p => locIds.includes(p.location_id) || !p.location_id); // Incluir sem local? Discutível, mas seguro.
+            filt = filt.filter(p => locIds.includes(p.location_id) || !p.location_id);
         }
         return filt;
     }, [products, search, isAdmin, assignedLocations]);
 
     const filteredEquipment = useMemo(() => {
         let filt = equipment.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
-        if (!isAdmin && assignedLocations.length > 0) {
+        if (!isAdmin) {
             const locIds = assignedLocations.map(l => l.id);
             filt = filt.filter(e => locIds.includes(e.location_id));
         }
