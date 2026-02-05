@@ -365,12 +365,21 @@ const Inventory = () => {
         if (isAdmin) return locations;
         try {
             const sess = userSession || {};
-            const locIds = sess.assigned_locations ? (typeof sess.assigned_locations === 'string' ? JSON.parse(sess.assigned_locations) : sess.assigned_locations) : [];
-            if (Array.isArray(locIds) && locIds.length > 0) {
-                return locations.filter(l => locIds.includes(l.id));
+            // Parse robusto de assigned_locations
+            let locIds = sess.assigned_locations;
+            if (typeof locIds === 'string') {
+                try { locIds = JSON.parse(locIds); } catch (e) { locIds = []; }
             }
-        } catch (e) { console.error(e); }
-        return []; // Default: Sem acesso se não tiver locais atribuídos
+            if (!Array.isArray(locIds)) locIds = [];
+
+            // Converter tudo para string para comparação segura
+            const strLocIds = locIds.map(id => String(id));
+
+            if (strLocIds.length > 0) {
+                return locations.filter(l => strLocIds.includes(String(l.id)));
+            }
+        } catch (e) { console.error("Erro assigned locations:", e); }
+        return [];
     }, [isAdmin, locations, userSession]);
 
     const handleApprove = async (id) => {
@@ -389,9 +398,14 @@ const Inventory = () => {
     useEffect(() => { loadData(); }, []);
 
     const handleSaveProduct = async (data) => {
-        if (editingItem) await db.inventory.update(editingItem.id, data);
-        else await db.inventory.create(data);
+        // Regra de Negócio: Operadores não criam itens ativos diretamente
+        const payload = { ...data };
+        if (!isAdmin) payload.status = 'pending';
+
+        if (editingItem) await db.inventory.update(editingItem.id, payload);
+        else await db.inventory.create(payload);
         loadData();
+        if (!isAdmin) alert("Produto submetido para aprovação do Gerente.");
     };
 
     const handleSaveEquipment = async (data) => {
