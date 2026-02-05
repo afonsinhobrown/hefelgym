@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS products (
     gym_id TEXT DEFAULT 'hefel_gym_v1',
     location_id TEXT,
     photo_url TEXT,
-    type TEXT
+    type TEXT,
+    status TEXT DEFAULT 'active'
 );
 
 -- Tabela: invoices
