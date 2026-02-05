@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -14,31 +15,29 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABA
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('❌ ERRO CRÍTICO: Variáveis SUPABASE_URL ou SUPABASE_KEY em falta!');
-    process.exit(1);
+    // Não crashar, apenas logar, para permitir debug se necessário
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-console.log('✅ Supabase conectado para operações Cloud-Only');
+console.log('✅ Supabase conectado');
 
-// === CORS TOTAL (Para resolver Erro 405) ===
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-// O middleware cors() já responde a OPTIONS automaticamente, não precisa de app.options('*')
+// === SERVIR FRONTEND (BUILD) ===
+// Serve ficheiros estáticos da pasta dist na raiz do projeto (um nível acima de server/)
+app.use(express.static(path.join(__dirname, '../dist')));
 
+// === CORS E MIDDLEWARE ===
+app.use(cors({ origin: '*' }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Log de Diagnóstico (Render Logs)
+// Log
 app.use((req, res, next) => {
-    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.path}`);
+    if (!req.path.startsWith('/assets')) console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.path}`);
     next();
 });
 
-// === ROTAS DE OPERAÇÃO ===
-app.get('/', (req, res) => res.json({ status: 'online', mode: 'cloud-only' }));
+// === ROTAS API ===
+app.get('/api/status', (req, res) => res.json({ status: 'online', mode: 'web-service', timestamp: new Date() }));
 
 app.get('/api/clients', async (req, res) => {
     try {
@@ -120,6 +119,12 @@ app.post('/api/invoices', async (req, res) => {
         if (error) throw error;
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// === ROTA CATCH-ALL (PARA SPA/REACT) ===
+// Qualquer rota que não seja /api deve retornar o index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, () => console.log(`🚀 Servidor Hefel Gym Online na porta ${PORT}`));
