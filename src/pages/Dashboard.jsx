@@ -428,7 +428,7 @@ const Dashboard = () => {
         </div>
 
         <div className="card activity-card">
-          <h2>Atividade Recente (Vendas/Faturas)</h2>
+          <h2>Atividade Recente (Vendas/Facturas)</h2>
           <ul className="activity-list">
             {stats.recentActivity.length === 0 ? (
               <p className="text-muted text-sm mt-4">Nenhuma atividade recente.</p>

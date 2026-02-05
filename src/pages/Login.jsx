@@ -47,7 +47,7 @@ const Login = () => {
                     user: user.name,
                     email: user.email, // ADICIONADO: Garantir que o email vai para a sessão
                     role: user.role,
-                    gymId: user.gym_id || 'hefel_gym_v1',
+                    gymId: user.gym_id,
                     userId: user.id
                 };
             } else {

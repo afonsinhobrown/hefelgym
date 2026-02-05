@@ -5,22 +5,27 @@ export const API_LOCAL = 'https://hefelgym.onrender.com/api';
 const getAuthGymId = () => {
     try {
         const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
-        return session?.gymId || 'hefel_gym_v1';
-    } catch { return 'hefel_gym_v1'; }
+        if (!session?.gymId) throw new Error("Gym ID not found in session");
+        return session.gymId;
+    } catch (e) {
+        console.error("Auth Error:", e.message);
+        throw e; // Propagate error to stop execution
+    }
 };
 
 export const db = {
-    init: async () => { console.log("🚀 Sistema Totalmente Restaurado - Modo Cloud"); },
+    init: async () => { console.log("🚀 Sistema Iniciado - Modo Cloud"); },
 
     inventory: {
         getAll: async () => {
+            const gymId = getAuthGymId();
             const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
-            const gymId = session?.gymId || 'hefel_gym_v1';
             const userRole = session?.role;
             const userId = session?.userId;
 
             let query = supabase.from('products').select('*');
-            if (gymId) query = query.or(`gym_id.eq.${gymId},gym_id.is.null`);
+            // Strict filtering: Only current gym
+            if (gymId) query = query.eq('gym_id', gymId);
 
             // Se for operador, filtrar por locais atribuídos (se houver)
             if (userRole === 'operator' || userRole === 'manager') {
@@ -40,8 +45,8 @@ export const db = {
             return data.map(p => ({ ...p, price: Number(p.price), cost_price: Number(p.cost_price || 0) }));
         },
         create: async (data) => {
+            const gymId = getAuthGymId();
             const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
-            const gymId = session?.gymId || 'hefel_gym_v1';
             const userRole = session?.role;
 
             const payload = {

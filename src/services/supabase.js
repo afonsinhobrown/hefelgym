@@ -18,7 +18,9 @@ export { supabase };
 export const migrateToCloud = async () => {
     if (!supabase) return { success: false, error: "Base de dados não conectada no .env" };
 
-    const GYM_ID = 'hefel_gym_v1';
+    const session = JSON.parse(localStorage.getItem('gymar_session') || '{}');
+    const GYM_ID = session?.gymId;
+    if (!GYM_ID) return { success: false, error: "Gym ID não encontrado na sessão (Login necessário)" };
     const report = { clients: 0, invoices: 0, products: 0, errors: [] };
 
     try {
