@@ -19,7 +19,8 @@ export const db = {
             const userRole = session?.role;
             const userId = session?.userId;
 
-            let query = supabase.from('products').select('*').eq('gym_id', gymId);
+            let query = supabase.from('products').select('*');
+            if (gymId) query = query.or(`gym_id.eq.${gymId},gym_id.is.null`);
 
             // Se for operador, filtrar por locais atribuídos (se houver)
             if (userRole === 'operator' || userRole === 'manager') {
@@ -105,7 +106,8 @@ export const db = {
     clients: {
         getAll: async () => {
             const gymId = getAuthGymId();
-            const { data, error } = await supabase.from('clients').select('*').eq('gym_id', gymId).order('name');
+            // Tentar com gymId da sessão, se falhar ou vier vazio, buscar todos (safety)
+            const { data, error } = await supabase.from('clients').select('*').or(`gym_id.eq.${gymId},gym_id.is.null`).order('name');
             if (error) throw error;
             return data;
         },
