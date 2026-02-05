@@ -8,7 +8,7 @@ const WhatsAppConnect = () => {
     const [testNumber, setTestNumber] = useState('');
     const [logs, setLogs] = useState([]);
 
-    const BOT_API = 'http://localhost:3001/api/whatsapp';
+    const BOT_API = '/api/whatsapp';
 
     const checkStatus = async () => {
         try {

@@ -47,7 +47,7 @@ const Settings = () => {
     // 1. Carregar Configuração do Backend
     const loadSystemConfig = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/config');
+            const res = await fetch('/api/config');
             if (res.ok) {
                 const data = await res.json();
                 setSystemConfig({ gymId: data.gymId, status: 'ok' });
