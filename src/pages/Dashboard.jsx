@@ -283,7 +283,7 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard animate-fade-in">
-      <div className="search-overlay-trigger" style={{ marginBottom: '2rem' }}>
+      <div className="feature-search-container" style={{ marginBottom: '2rem' }}>
         <div className="card glass search-wrapper">
           <Search size={20} className="text-muted" />
           <input
@@ -640,25 +640,43 @@ const Dashboard = () => {
         .activity-amount.text-success { color: var(--success); }
         .activity-amount.text-warning { color: #f59e0b; }
 
+        /* Feature Search Container - Garantir Visibilidade */
+        .feature-search-container {
+          width: 100%;
+          position: relative;
+          z-index: 10;
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+
         /* Feature Search Styles */
         .search-wrapper {
-          display: flex;
+          display: flex !important;
           align-items: center;
           gap: 1rem;
           padding: 1rem 1.5rem !important;
           position: relative;
-          background: rgba(15, 23, 42, 0.4) !important;
-          border: 1px solid rgba(249, 115, 22, 0.2) !important;
+          background: rgba(15, 23, 42, 0.8) !important;
+          border: 1px solid rgba(249, 115, 22, 0.3) !important;
+          backdrop-filter: blur(10px);
+          width: 100%;
+          visibility: visible !important;
+          opacity: 1 !important;
         }
 
         .feature-search-input {
           flex: 1;
           background: transparent;
           border: none;
-          color: white;
+          color: white !important;
           font-size: 1rem;
           outline: none;
           font-family: inherit;
+        }
+
+        .feature-search-input::placeholder {
+          color: rgba(148, 163, 184, 0.7);
         }
 
         .search-shortcut {
@@ -680,7 +698,7 @@ const Dashboard = () => {
           background: #1e293b;
           border: 1px solid var(--border);
           border-radius: var(--radius);
-          z-index: 100;
+          z-index: 1000;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
           overflow: hidden;
           backdrop-filter: blur(20px);
