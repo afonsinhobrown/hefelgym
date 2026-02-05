@@ -417,8 +417,23 @@ const Inventory = () => {
     const deleteProduct = async (id) => { if (confirm('Eliminar produto?')) { await db.inventory.delete(id); loadData(); } };
     const deleteEquipment = async (id) => { if (confirm('Eliminar equipamento?')) { await db.equipment.delete(id); loadData(); } };
 
-    const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
-    const filteredEquipment = equipment.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+    const filteredProducts = useMemo(() => {
+        let filt = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+        if (!isAdmin && assignedLocations.length > 0) {
+            const locIds = assignedLocations.map(l => l.id);
+            filt = filt.filter(p => locIds.includes(p.location_id) || !p.location_id); // Incluir sem local? Discutível, mas seguro.
+        }
+        return filt;
+    }, [products, search, isAdmin, assignedLocations]);
+
+    const filteredEquipment = useMemo(() => {
+        let filt = equipment.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+        if (!isAdmin && assignedLocations.length > 0) {
+            const locIds = assignedLocations.map(l => l.id);
+            filt = filt.filter(e => locIds.includes(e.location_id));
+        }
+        return filt;
+    }, [equipment, search, isAdmin, assignedLocations]);
 
     const generateReport = async () => {
         try {
